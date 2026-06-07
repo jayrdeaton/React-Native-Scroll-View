@@ -1,4 +1,4 @@
-import { BlurView } from './internal/BlurView'
+import { BlurView } from '@rific/auto-paper'
 import { type ReactNode, useContext, useEffect } from 'react'
 import { type LayoutChangeEvent, StyleSheet, View, type ViewStyle } from 'react-native'
 import { ProgressBar } from 'react-native-paper'

@@ -1,4 +1,4 @@
-import { BlurView } from './internal/BlurView'
+import { BlurView } from '@rific/auto-paper'
 import { type ReactNode, useContext } from 'react'
 import { type LayoutChangeEvent, StyleSheet, View, type ViewStyle } from 'react-native'
 import { ProgressBar } from 'react-native-paper'
@@ -39,7 +39,7 @@ export const ScrollViewHeader = ({ children, style, topInset = true }: ScrollVie
   }, [headerHeight, headerLock, top])
   return (
     <View onLayout={handleLayout} pointerEvents='box-none' style={styles.header}>
-      {!headerLock && top > 0 && <BlurView blur={blur} style={[styles.blur, { height: top }]} />}
+      {!headerLock && top > 0 && <BlurView blur={blur} style={StyleSheet.flatten([styles.blur, { height: top }])} />}
       <Animated.View style={[StyleSheet.absoluteFill, blurStyle]}>
         <BlurView blur={blur} style={StyleSheet.absoluteFill} />
       </Animated.View>

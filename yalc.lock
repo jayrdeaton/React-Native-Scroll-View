@@ -1,0 +1,10 @@
+{
+  "version": "v1",
+  "packages": {
+    "@rific/auto-paper": {
+      "signature": "cfd2a2200a6c9458989df218ab2ced50",
+      "file": true,
+      "replaced": "*"
+    }
+  }
+}

@@ -31,20 +31,20 @@ describe('ScrollViewProvider', () => {
     expect(capturedValue?.progressing).toBe(false)
   })
 
-  it('accepts headerLock and footerLock props', () => {
-    let capturedCtx: { headerLock: boolean; footerLock: boolean } | undefined
+  it('accepts headerFixed and footerFixed props', () => {
+    let capturedCtx: { headerFixed: boolean; footerFixed: boolean } | undefined
     const Reader = () => {
       const ctx = useContext(ScrollViewContext)
-      capturedCtx = { headerLock: ctx.headerLock, footerLock: ctx.footerLock }
+      capturedCtx = { headerFixed: ctx.headerFixed, footerFixed: ctx.footerFixed }
       return null
     }
     render(
-      <ScrollViewProvider headerLock footerLock>
+      <ScrollViewProvider headerFixed footerFixed>
         <Reader />
       </ScrollViewProvider>
     )
-    expect(capturedCtx?.headerLock).toBe(true)
-    expect(capturedCtx?.footerLock).toBe(true)
+    expect(capturedCtx?.headerFixed).toBe(true)
+    expect(capturedCtx?.footerFixed).toBe(true)
   })
 
   it('setProgress updates progress value', () => {

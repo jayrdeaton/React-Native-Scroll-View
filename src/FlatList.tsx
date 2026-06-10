@@ -1,16 +1,13 @@
-import { memo, type RefObject, useCallback, useContext, useEffect, useMemo, useRef } from 'react'
-import { Dimensions, FlatList as RNFlatList, type FlatListProps as RNFlatListProps, type NativeScrollEvent, type NativeSyntheticEvent, StyleSheet, View } from 'react-native'
+import { memo, type RefObject, useCallback, useMemo, useRef } from 'react'
+import { Dimensions, FlatList as RNFlatList, type FlatListProps as RNFlatListProps, type NativeScrollEvent, type NativeSyntheticEvent, View } from 'react-native'
 import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture-handler'
-import { Chip } from 'react-native-paper'
-import Animated, { useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import Animated from 'react-native-reanimated'
 
 import { RefreshControl } from './internal/RefreshControl'
-import { ScrollViewContext } from './ScrollViewContext'
-import { useKeyboardInset } from './useKeyboardInset'
+import { ScrollViewChip } from './internal/ScrollViewChip'
+import { useScrollHandler } from './internal/useScrollHandler'
 import { useScrollInit } from './useScrollInit'
-
-const CHIP_SLIDE = 48
+import { useScrollList } from './internal/useScrollList'
 
 export type FlatListProps<T> = RNFlatListProps<T> & {
   footerFixed?: boolean
@@ -24,24 +21,10 @@ export type FlatListProps<T> = RNFlatListProps<T> & {
 }
 
 const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyle, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, horizontal, keyboardAware, ListHeaderComponent: externalListHeaderComponent, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, refreshing, style, onContentSizeChange, ref: externalRef, ...props }: FlatListProps<T>) => {
-  const insets = useSafeAreaInsets()
-  const chipHidden = useSharedValue(1)
   const scrollView = useRef<RNFlatList>(null)
-  const keyboardHeight = useKeyboardInset()
-  const { footerHeight, footerFixed: contextFooterLock, headerHeight, headerFixed: contextHeaderLock, pullSearchHeightShared, scrollPosition } = useContext(ScrollViewContext)
-  const headerFixed = headerFixedProp ?? contextHeaderLock
-  const footerFixed = footerFixedProp ?? contextFooterLock
   const isHorizontal = horizontal === true
 
-  useEffect(() => {
-    pullSearchHeightShared.value = pullSearchHeight ?? 0
-  }, [pullSearchHeight, pullSearchHeightShared])
-  const containerStyle = useMemo(() => [StyleSheet.absoluteFill, style], [style])
-  const contentInset = useMemo(
-    () => ({ bottom: (footerFixed ? footerHeight || insets.bottom : insets.bottom) + (keyboardAware ? keyboardHeight : 0), top: headerHeight }),
-    [footerFixed, footerHeight, insets.bottom, headerHeight, keyboardAware, keyboardHeight]
-  )
-  const chipTop = useMemo(() => (headerFixed ? headerHeight : insets.top) + 4, [headerFixed, headerHeight, insets.top])
+  const { chipAnimatedProps, chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, keyboardAware, pullSearchHeight, style })
 
   const scrollTo = useCallback((offset: number, animated: boolean) => {
     scrollView.current?.scrollToOffset({ offset, animated })
@@ -55,33 +38,22 @@ const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyl
     scrollTo,
   })
 
-  // minHeight must include pullSearchMinHeight so the scroll range reaches hideY.
-  // Without it, maxScrollOffset = -headerHeight and scrollToOffset(hideY) is silently clamped.
   const contentContainerStyle = useMemo(
     () => [{ minHeight: Dimensions.get('window').height - contentInset.top - contentInset.bottom + pullSearchMinHeight }, externalContentContainerStyle],
     [contentInset.bottom, contentInset.top, externalContentContainerStyle, pullSearchMinHeight]
   )
 
-  const chipStyle = useAnimatedStyle(() => ({
-    opacity: chipHidden.value ? withTiming(0) : withTiming(1),
-    transform: [{ translateY: chipHidden.value ? withTiming(-CHIP_SLIDE) : withTiming(0) }]
-  }))
-  const chipAnimatedProps = useAnimatedProps(
-    () => ({ pointerEvents: chipHidden.value ? 'none' : 'box-none' }) as { pointerEvents: 'none' | 'box-none' }
-  )
+  const handleScroll = useScrollHandler({ chipHidden, footerFixed, headerFixed })
+
+  const handleScrollToTop = useCallback(() => {
+    const offset = pullSearchHeight ? -contentInset.top + pullSearchHeight : -contentInset.top
+    scrollView.current?.scrollToOffset({ offset, animated: true })
+  }, [contentInset.top, pullSearchHeight])
 
   const handleContentSizeChange = useCallback(
     (w: number, h: number) => { if (onContentSizeChange) onContentSizeChange(w, h) },
     [onContentSizeChange]
   )
-  const handleScroll = useAnimatedScrollHandler(({ contentOffset: { y } }) => {
-    scrollPosition.value = y
-    chipHidden.value = y < 100 ? 1 : 0
-  })
-  const handleScrollToTop = useCallback(() => {
-    const offset = pullSearchHeight ? -contentInset.top + pullSearchHeight : -contentInset.top
-    scrollView.current?.scrollToOffset({ offset, animated: true })
-  }, [contentInset.top, pullSearchHeight])
 
   const refreshControl = useMemo(
     () => (onRefresh ? <RefreshControl onRefresh={onRefresh} refreshing={refreshing ?? false} /> : <RefreshControl />),
@@ -97,6 +69,7 @@ const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyl
         {...(props as any)}
         contentContainerStyle={contentContainerStyle}
         contentInset={contentInset}
+        contentOffset={contentOffset}
         horizontal={isHorizontal}
         initialNumToRender={20}
         ListHeaderComponent={activeListHeader}
@@ -121,20 +94,12 @@ const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyl
           {hiddenHeader}
         </View>
       )}
-      <Animated.View animatedProps={chipAnimatedProps} style={[styles.chip, { top: chipTop }, chipStyle]}>
-        <Chip compact icon='chevron-up' onPress={handleScrollToTop} style={styles.chipInner}>
-          Top
-        </Chip>
-      </Animated.View>
+      <ScrollViewChip animatedProps={chipAnimatedProps} onPress={handleScrollToTop} style={chipStyle} />
     </View>
   )
   return detectorGesture ? <GestureDetector gesture={detectorGesture}>{content}</GestureDetector> : content
 }
 
-const styles = StyleSheet.create({
-  chip: { alignItems: 'center', left: 0, position: 'absolute', right: 0, zIndex: 3 },
-  chipInner: { elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 2 },
-  measureContainer: { left: 0, opacity: 0, position: 'absolute', right: 0, top: -9999 }
-})
+const styles = { measureContainer: { left: 0, opacity: 0, position: 'absolute' as const, right: 0, top: -9999 } }
 
 export const FlatList = memo(FlatListInner) as typeof FlatListInner

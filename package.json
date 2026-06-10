@@ -27,6 +27,7 @@
   "type": "commonjs",
   "exports": {
     ".": {
+      "react-native": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
@@ -34,12 +35,16 @@
   },
   "main": "dist/index.js",
   "module": "dist/index.mjs",
+  "react-native": "src/index.ts",
   "types": "dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --clean --watch",
+    "push": "yalc publish --push",
     "fix": "eslint --fix",
     "lint": "eslint",
     "prepublishOnly": "npm run build",
@@ -53,8 +58,8 @@
     "preversion": "npm run lint && npm test && npm run build"
   },
   "devDependencies": {
+    "@reduxjs/toolkit": "^2.12.0",
     "@rific/auto-paper": "file:.yalc/@rific/auto-paper",
-    "@shopify/flash-list": "*",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@types/jest": "^30.0.0",
@@ -86,7 +91,6 @@
   },
   "peerDependencies": {
     "@rific/auto-paper": "*",
-    "@shopify/flash-list": "*",
     "react": ">=18.0.0",
     "react-native": ">=0.73.0",
     "react-native-gesture-handler": "*",
@@ -94,11 +98,6 @@
     "react-native-paper": ">=5.0.0",
     "react-native-reanimated": ">=3.0.0",
     "react-native-safe-area-context": "*"
-  },
-  "peerDependenciesMeta": {
-    "@shopify/flash-list": {
-      "optional": true
-    }
   },
   "publishConfig": {
     "access": "public"

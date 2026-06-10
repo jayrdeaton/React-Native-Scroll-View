@@ -1,5 +1,5 @@
 import { memo, type RefObject, useCallback, useContext, useEffect, useMemo, useRef } from 'react'
-import { Dimensions, FlatList as RNFlatList, type FlatListProps as RNFlatListProps, type NativeScrollEvent, type NativeSyntheticEvent, StyleSheet, View } from 'react-native'
+import { Dimensions, type NativeScrollEvent, type NativeSyntheticEvent, SectionList as RNSectionList, type SectionListProps as RNSectionListProps, StyleSheet, View } from 'react-native'
 import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture-handler'
 import { Chip } from 'react-native-paper'
 import Animated, { useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
@@ -12,7 +12,7 @@ import { useScrollInit } from './useScrollInit'
 
 const CHIP_SLIDE = 48
 
-export type FlatListProps<T> = RNFlatListProps<T> & {
+export type SectionListProps<ItemT, SectionT extends { data: ReadonlyArray<ItemT> } = { data: ReadonlyArray<ItemT> }> = RNSectionListProps<ItemT, SectionT> & {
   footerFixed?: boolean
   gesture?: GestureType
   headerFixed?: boolean
@@ -20,31 +20,32 @@ export type FlatListProps<T> = RNFlatListProps<T> & {
   onScrollBeginDrag?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   onScrollEndDrag?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   pullSearchHeight?: number
-  ref?: RefObject<RNFlatList | null>
+  ref?: RefObject<RNSectionList<ItemT, SectionT> | null>
 }
 
-const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyle, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, horizontal, keyboardAware, ListHeaderComponent: externalListHeaderComponent, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, refreshing, style, onContentSizeChange, ref: externalRef, ...props }: FlatListProps<T>) => {
+const SectionListInner = <ItemT, SectionT extends { data: ReadonlyArray<ItemT> } = { data: ReadonlyArray<ItemT> }>({ contentContainerStyle: externalContentContainerStyle, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, keyboardAware, ListHeaderComponent: externalListHeaderComponent, onRefresh, onContentSizeChange, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, refreshing, sections, style, ref: externalRef, ...props }: SectionListProps<ItemT, SectionT>) => {
   const insets = useSafeAreaInsets()
   const chipHidden = useSharedValue(1)
-  const scrollView = useRef<RNFlatList>(null)
+  const scrollView = useRef<RNSectionList<ItemT, SectionT>>(null)
   const keyboardHeight = useKeyboardInset()
   const { footerHeight, footerFixed: contextFooterLock, headerHeight, headerFixed: contextHeaderLock, pullSearchHeightShared, scrollPosition } = useContext(ScrollViewContext)
   const headerFixed = headerFixedProp ?? contextHeaderLock
   const footerFixed = footerFixedProp ?? contextFooterLock
-  const isHorizontal = horizontal === true
 
   useEffect(() => {
     pullSearchHeightShared.value = pullSearchHeight ?? 0
   }, [pullSearchHeight, pullSearchHeightShared])
+
   const containerStyle = useMemo(() => [StyleSheet.absoluteFill, style], [style])
   const contentInset = useMemo(
     () => ({ bottom: (footerFixed ? footerHeight || insets.bottom : insets.bottom) + (keyboardAware ? keyboardHeight : 0), top: headerHeight }),
     [footerFixed, footerHeight, insets.bottom, headerHeight, keyboardAware, keyboardHeight]
   )
   const chipTop = useMemo(() => (headerFixed ? headerHeight : insets.top) + 4, [headerFixed, headerHeight, insets.top])
+  const contentOffset = useMemo(() => ({ x: 0, y: -contentInset.top }), [contentInset.top])
 
   const scrollTo = useCallback((offset: number, animated: boolean) => {
-    scrollView.current?.scrollToOffset({ offset, animated })
+    scrollView.current?.getScrollResponder()?.scrollTo({ y: offset, animated })
   }, [])
 
   const { activeListHeader, handleScrollBeginDrag, handleScrollEndDrag, hiddenHeader, pullSearchMinHeight } = useScrollInit({
@@ -56,7 +57,7 @@ const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyl
   })
 
   // minHeight must include pullSearchMinHeight so the scroll range reaches hideY.
-  // Without it, maxScrollOffset = -headerHeight and scrollToOffset(hideY) is silently clamped.
+  // Without it, maxScrollOffset = -headerHeight and scrollTo(hideY) is silently clamped.
   const contentContainerStyle = useMemo(
     () => [{ minHeight: Dimensions.get('window').height - contentInset.top - contentInset.bottom + pullSearchMinHeight }, externalContentContainerStyle],
     [contentInset.bottom, contentInset.top, externalContentContainerStyle, pullSearchMinHeight]
@@ -80,9 +81,10 @@ const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyl
   })
   const handleScrollToTop = useCallback(() => {
     const offset = pullSearchHeight ? -contentInset.top + pullSearchHeight : -contentInset.top
-    scrollView.current?.scrollToOffset({ offset, animated: true })
+    scrollView.current?.getScrollResponder()?.scrollTo({ y: offset, animated: true })
   }, [contentInset.top, pullSearchHeight])
 
+  const renderScrollComponent = useCallback((_props: any) => <Animated.ScrollView {..._props} onScroll={handleScroll} />, [handleScroll])
   const refreshControl = useMemo(
     () => (onRefresh ? <RefreshControl onRefresh={onRefresh} refreshing={refreshing ?? false} /> : <RefreshControl />),
     [onRefresh, refreshing]
@@ -93,27 +95,27 @@ const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyl
 
   const content = (
     <View style={containerStyle}>
-      <Animated.FlatList
-        {...(props as any)}
+      <RNSectionList
+        {...props}
         contentContainerStyle={contentContainerStyle}
         contentInset={contentInset}
-        horizontal={isHorizontal}
+        contentOffset={contentOffset}
         initialNumToRender={20}
         ListHeaderComponent={activeListHeader}
         maxToRenderPerBatch={50}
         onContentSizeChange={handleContentSizeChange}
-        onScroll={handleScroll}
         onScrollBeginDrag={handleScrollBeginDrag}
         onScrollEndDrag={handleScrollEndDrag}
-        ref={(el: RNFlatList | null) => {
+        ref={(el) => {
           if (externalRef) externalRef.current = el
           scrollView.current = el
         }}
         refreshControl={refreshControl}
         removeClippedSubviews={false}
+        renderScrollComponent={renderScrollComponent}
         scrollEventThrottle={16}
-        showsHorizontalScrollIndicator={isHorizontal}
-        showsVerticalScrollIndicator={!isHorizontal}
+        sections={sections}
+        showsVerticalScrollIndicator
         windowSize={100}
       />
       {hiddenHeader && (
@@ -137,4 +139,4 @@ const styles = StyleSheet.create({
   measureContainer: { left: 0, opacity: 0, position: 'absolute', right: 0, top: -9999 }
 })
 
-export const FlatList = memo(FlatListInner) as typeof FlatListInner
+export const SectionList = memo(SectionListInner) as typeof SectionListInner

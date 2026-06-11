@@ -2,7 +2,7 @@
   "version": "v1",
   "packages": {
     "@rific/auto-paper": {
-      "signature": "15423355cc6c6b132857f3310dd7877f",
+      "signature": "4eab5874f98efd8a531e76dcd96a6fd3",
       "file": true,
       "replaced": "*"
     }

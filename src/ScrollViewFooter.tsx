@@ -12,7 +12,7 @@ export type ScrollViewFooterProps = {
 }
 
 export const ScrollViewFooter = ({ children, style }: ScrollViewFooterProps) => {
-  const { blur, footerHeight, footerFixed, footerOffset, headerHeightShared, scrollPosition, setFooterHeight, snapBackFooterShared } = useContext(ScrollViewContext)
+  const { blur, footerHeight, footerFixed, footerOffset, headerHeightShared, pullSearchHeightShared, scrollPosition, setFooterHeight, snapBackFooterShared } = useContext(ScrollViewContext)
   const insets = useSafeAreaInsets()
   useEffect(
     () => () => {
@@ -30,7 +30,7 @@ export const ScrollViewFooter = ({ children, style }: ScrollViewFooterProps) => 
   const footerStyle = useAnimatedStyle(() => {
     if (footerFixed) return { transform: [{ translateY: 0 }] }
     if (snapBackFooterShared.value) return { transform: [{ translateY: footerOffset.value }] }
-    const effective = scrollPosition.value + headerHeightShared.value
+    const effective = scrollPosition.value + headerHeightShared.value - pullSearchHeightShared.value
     if (effective <= 0) return { transform: [{ translateY: 0 }] }
     return { transform: [{ translateY: Math.min(effective, footerHeight) }] }
   }, [footerHeight, footerFixed])

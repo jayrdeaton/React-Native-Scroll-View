@@ -1,7 +1,7 @@
 import { forwardRef, useCallback, useContext, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { type LayoutChangeEvent, StyleSheet, type TextInput } from 'react-native'
-import { Searchbar } from 'react-native-paper'
-import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated'
+import { Searchbar, useTheme } from 'react-native-paper'
+import Animated, { Extrapolation, interpolate, runOnJS, useAnimatedReaction, useAnimatedStyle } from 'react-native-reanimated'
 
 import { ScrollViewContext } from './ScrollViewContext'
 
@@ -20,6 +20,7 @@ export type PullSearchProps = {
 
 export const PullSearch = forwardRef<PullSearchHandle, PullSearchProps>(function PullSearch({ debounce, onChangeText, onHeightChange, placeholder, value: propValue }, ref) {
   const { headerHeight, scrollPosition } = useContext(ScrollViewContext)
+  const theme = useTheme()
   const inputRef = useRef<TextInput>(null)
   const [barHeight, setBarHeight] = useState(0)
   const [value, setValue] = useState(propValue ?? '')
@@ -35,6 +36,19 @@ export const PullSearch = forwardRef<PullSearchHandle, PullSearchProps>(function
     blur: () => inputRef.current?.blur(),
     focus: () => inputRef.current?.focus()
   }))
+
+  const blurInput = useCallback(() => inputRef.current?.blur(), [])
+
+  useAnimatedReaction(
+    () => {
+      if (barHeight === 0) return false
+      return scrollPosition.value >= -headerHeight + barHeight
+    },
+    (isHidden, wasHidden) => {
+      if (isHidden && !wasHidden) runOnJS(blurInput)()
+    },
+    [barHeight, headerHeight, blurInput]
+  )
 
   const handleClear = useCallback(() => {
     setValue('')
@@ -72,6 +86,7 @@ export const PullSearch = forwardRef<PullSearchHandle, PullSearchProps>(function
         onChangeText={(text) => setValue((text || '').trimStart())}
         onClearIconPress={handleClear}
         placeholder={placeholder}
+        placeholderTextColor={theme.colors.onSurfaceVariant}
         ref={inputRef}
         spellCheck={false}
         style={styles.input}
@@ -82,6 +97,6 @@ export const PullSearch = forwardRef<PullSearchHandle, PullSearchProps>(function
 })
 
 const styles = StyleSheet.create({
-  container: { paddingBottom: 8 },
-  input: { margin: 4 }
+  container: { paddingVertical: 8 },
+  input: { margin: 0 }
 })

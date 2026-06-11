@@ -5,6 +5,8 @@ import { ScrollViewContext } from './ScrollViewContext'
 
 export type UseScrollInitOptions = {
   listHeaderComponent?: ComponentType<any> | ReactElement | null
+  onMomentumScrollEnd?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
+  onRefresh?: () => Promise<void> | void
   onScrollBeginDrag?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   onScrollEndDrag?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   pullSearchHeight?: number
@@ -13,17 +15,20 @@ export type UseScrollInitOptions = {
 
 export type UseScrollInitResult = {
   activeListHeader: ComponentType<any> | ReactElement | null | undefined
+  handleMomentumScrollEnd: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   handleScrollBeginDrag: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   handleScrollEndDrag: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   hiddenHeader: ReactElement | null
   pullSearchMinHeight: number
 }
 
-export function useScrollInit({ listHeaderComponent, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, scrollTo }: UseScrollInitOptions): UseScrollInitResult {
-  const { headerHeight, scrollPosition } = useContext(ScrollViewContext)
+export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, scrollTo }: UseScrollInitOptions): UseScrollInitResult {
+  const { headerHeight, scrollPosition, setProgressing } = useContext(ScrollViewContext)
   const hasPullSearch = pullSearchHeight !== undefined
   const [phase, setPhase] = useState<'measuring' | 'ready'>(hasPullSearch ? 'measuring' : 'ready')
+  const [refreshing, setRefreshing] = useState(false)
   const dragStartY = useRef<number | null>(null)
+  const deliberatelyOpened = useRef(false)
 
   // Transition to 'ready' once both measurements are available
   useEffect(() => {
@@ -50,8 +55,13 @@ export function useScrollInit({ listHeaderComponent, onScrollBeginDrag: external
     scrollTo(-headerHeight + pullSearchHeight, false)
   }, [hasPullSearch, phase, headerHeight, pullSearchHeight, scrollPosition, scrollTo])
 
+  useEffect(() => {
+    if (pullSearchHeight) setProgressing(refreshing)
+  }, [pullSearchHeight, refreshing, setProgressing])
+
   const handleScrollBeginDrag = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      deliberatelyOpened.current = false
       if (pullSearchHeight) dragStartY.current = e.nativeEvent.contentOffset.y
       externalScrollBeginDrag?.(e)
     },
@@ -67,6 +77,11 @@ export function useScrollInit({ listHeaderComponent, onScrollBeginDrag: external
         const pulledDown = (dragStartY.current ?? hideY) <= hideY
         dragStartY.current = null
         if (pulledDown && y <= showY + pullSearchHeight * 0.5) {
+          deliberatelyOpened.current = true
+          if (y <= showY && !refreshing && onRefresh) {
+            setRefreshing(true)
+            Promise.resolve(onRefresh()).finally(() => setRefreshing(false))
+          }
           scrollTo(showY, true)
         } else if (y < hideY) {
           scrollTo(hideY, true)
@@ -74,7 +89,20 @@ export function useScrollInit({ listHeaderComponent, onScrollBeginDrag: external
       }
       externalScrollEndDrag?.(e)
     },
-    [externalScrollEndDrag, headerHeight, pullSearchHeight, scrollTo]
+    [externalScrollEndDrag, headerHeight, onRefresh, pullSearchHeight, refreshing, scrollTo]
+  )
+
+  const handleMomentumScrollEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (pullSearchHeight && headerHeight && !deliberatelyOpened.current && !refreshing) {
+        const y = e.nativeEvent.contentOffset.y
+        const hideY = -headerHeight + pullSearchHeight
+        if (y < hideY - 1) scrollTo(hideY, true)
+      }
+      deliberatelyOpened.current = false
+      externalMomentumScrollEnd?.(e)
+    },
+    [externalMomentumScrollEnd, headerHeight, pullSearchHeight, refreshing, scrollTo]
   )
 
   const activeListHeader = hasPullSearch && phase === 'measuring' ? null : listHeaderComponent
@@ -85,5 +113,5 @@ export function useScrollInit({ listHeaderComponent, onScrollBeginDrag: external
         : (listHeaderComponent as ReactElement)
       : null
 
-  return { activeListHeader, handleScrollBeginDrag, handleScrollEndDrag, hiddenHeader, pullSearchMinHeight: pullSearchHeight ?? 0 }
+  return { activeListHeader, handleMomentumScrollEnd, handleScrollBeginDrag, handleScrollEndDrag, hiddenHeader, pullSearchMinHeight: pullSearchHeight ?? 0 }
 }

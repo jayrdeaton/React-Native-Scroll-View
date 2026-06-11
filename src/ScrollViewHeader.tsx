@@ -14,6 +14,7 @@ export type ScrollViewHeaderProps = {
   backAction?: () => void
   backActionFixed?: boolean
   caption?: string
+  centerContent?: ReactNode
   children?: ReactNode | ReactNode[]
   iconSize?: number
   style?: ViewStyle
@@ -28,7 +29,7 @@ type ActionBgProps = { blur: boolean; style?: ViewStyle }
 const ActionBg = ({ blur, style }: ActionBgProps) =>
   blur ? (
     <View style={[StyleSheet.absoluteFill, styles.actionBg, style]}>
-      <BlurView blur elevation={1} style={StyleSheet.absoluteFill} />
+      <BlurView blur style={StyleSheet.absoluteFill} />
     </View>
   ) : (
     <View style={[StyleSheet.absoluteFill, styles.actionBg, style]} pointerEvents='none'>
@@ -38,7 +39,7 @@ const ActionBg = ({ blur, style }: ActionBgProps) =>
     </View>
   )
 
-export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, backActionFixed, caption, children, iconSize, style, title, topInset = true, trailingAction, trailingActionFixed = true }: ScrollViewHeaderProps) => {
+export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, backActionFixed, caption, centerContent, children, iconSize, style, title, topInset = true, trailingAction, trailingActionFixed = true }: ScrollViewHeaderProps) => {
   const { blur, headerHeight, headerFixed, headerOffset, progress, progressing, pullSearchHeightShared, scrollPosition, setHeaderHeight, snapBackHeaderShared } = useContext(ScrollViewContext)
   const { settings } = useContext(ScrollViewSettingsContext)
   const effectiveBackActionFixed = backActionFixed ?? settings.backActionFixed
@@ -59,10 +60,13 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
     if (effective <= 0) return { transform: [{ translateY: 0 }] }
     return { transform: [{ translateY: -effective }] }
   }, [headerFixed, headerHeight])
-  const bgStyle = useAnimatedStyle(() => {
+  const blurStyle = useAnimatedStyle(() => {
+    if (!headerHeight) return { height: 0 }
     if (headerFixed) return { height: headerHeight }
-    const slide = snapBackHeaderShared.value ? -headerOffset.value : Math.max(0, scrollPosition.value + headerHeight - pullSearchHeightShared.value)
-    return { height: Math.max(headerHeight - slide, top) }
+    const translateY = snapBackHeaderShared.value
+      ? headerOffset.value
+      : -Math.max(0, scrollPosition.value + headerHeight - pullSearchHeightShared.value)
+    return { height: Math.max(headerHeight + translateY, top) }
   }, [headerFixed, headerHeight, top])
   const progressStyle = useAnimatedStyle(() => {
     if (headerFixed) return { top: headerHeight }
@@ -78,32 +82,36 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
   const trailingStyle = { alignItems: 'center' as const, height: actionSize, justifyContent: 'center' as const, position: 'absolute' as const, right: actionMargin, top: actionTop, width: actionSize, zIndex: 3, ...actionShadow }
   return (
     <>
-      <Animated.View pointerEvents='none' style={[styles.headerBg, bgStyle]}>
-        {headerHeight > 0 && <BlurView blur={blur} style={{ height: headerHeight, left: 0, position: 'absolute', right: 0, top: 0 }} />}
-        {!blur && <View style={[styles.divider, { backgroundColor: theme.colors.outlineVariant }]} />}
+      <Animated.View pointerEvents='none' style={[styles.blur, blurStyle]}>
+        {headerHeight > 0 && <BlurView blur={blur} style={[styles.blurInner, { height: headerHeight }]} />}
       </Animated.View>
-      <Animated.View onLayout={handleLayout} pointerEvents='box-none' style={[styles.header, translateStyle]}>
+      <Animated.View onLayout={handleLayout} pointerEvents='box-none' style={[headerHeight === 0 ? styles.headerInit : styles.header, translateStyle]}>
         <View style={[{ paddingTop: top }, style]}>
           <View style={[styles.content, { minHeight: contentMinHeight }]}>
             <View style={styles.side} />
             <View style={styles.spacer} />
             <View style={styles.side}>{children}</View>
-            {(title || caption) && (
-              <View style={[StyleSheet.absoluteFill, styles.titleContainer]} pointerEvents='none'>
-                {title && (
-                  <Text numberOfLines={1} style={[styles.title, { color: theme.colors.onSurface }]}>
-                    {title}
-                  </Text>
-                )}
-                {caption && (
-                  <Text numberOfLines={1} style={[styles.caption, { color: theme.colors.onSurfaceVariant }]}>
-                    {caption}
-                  </Text>
+            {(centerContent || title || caption) && (
+              <View style={[StyleSheet.absoluteFill, styles.titleContainer]} pointerEvents={centerContent ? 'box-none' : 'none'}>
+                {centerContent ?? (
+                  <>
+                    {title && (
+                      <Text numberOfLines={1} style={[styles.title, { color: theme.colors.onSurface }]}>
+                        {title}
+                      </Text>
+                    )}
+                    {caption && (
+                      <Text numberOfLines={1} style={[styles.caption, { color: theme.colors.onSurfaceVariant }]}>
+                        {caption}
+                      </Text>
+                    )}
+                  </>
                 )}
               </View>
             )}
           </View>
         </View>
+        {!blur && <View style={[styles.divider, { backgroundColor: theme.colors.outlineVariant }]} />}
       </Animated.View>
       <Animated.View pointerEvents='none' style={[styles.progress, progressStyle]}>
         <ProgressBar indeterminate={progress === null} visible={progressing} progress={progress ?? undefined} />
@@ -141,8 +149,10 @@ const styles = StyleSheet.create({
   divider: { bottom: 0, height: StyleSheet.hairlineWidth, left: 0, position: 'absolute', right: 0 },
   caption: { fontSize: 12, fontWeight: '400', textAlign: 'center' },
   content: { alignItems: 'center', flexDirection: 'row', width: '100%' },
-  header: { left: 0, position: 'absolute', right: 0, top: 0, zIndex: 2 },
-  headerBg: { left: 0, overflow: 'hidden', position: 'absolute', right: 0, top: 0, zIndex: 1 },
+  blur: { left: 0, overflow: 'hidden', position: 'absolute', right: 0, top: 0, zIndex: 2 },
+  blurInner: { left: 0, position: 'absolute', right: 0, top: 0 },
+  header: { left: 0, overflow: 'hidden', position: 'absolute', right: 0, top: 0, zIndex: 2 },
+  headerInit: { left: 0, overflow: 'hidden', right: 0, zIndex: 2 },
   progress: { left: 0, position: 'absolute', right: 0, zIndex: 3 },
   side: { alignItems: 'center', flexDirection: 'row' },
   spacer: { flex: 1 },

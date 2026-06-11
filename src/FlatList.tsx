@@ -9,18 +9,20 @@ import { useScrollHandler } from './internal/useScrollHandler'
 import { useScrollInit } from './useScrollInit'
 import { useScrollList } from './internal/useScrollList'
 
-export type FlatListProps<T> = RNFlatListProps<T> & {
+export type FlatListProps<T> = Omit<RNFlatListProps<T>, 'onRefresh' | 'refreshing'> & {
   footerFixed?: boolean
   gesture?: GestureType
   headerFixed?: boolean
   keyboardAware?: boolean
+  onMomentumScrollEnd?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
+  onRefresh?: () => Promise<void> | void
   onScrollBeginDrag?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   onScrollEndDrag?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   pullSearchHeight?: number
   ref?: RefObject<RNFlatList | null>
 }
 
-const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyle, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, horizontal, keyboardAware, ListHeaderComponent: externalListHeaderComponent, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, refreshing, style, onContentSizeChange, ref: externalRef, ...props }: FlatListProps<T>) => {
+const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyle, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, horizontal, keyboardAware, ListHeaderComponent: externalListHeaderComponent, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, style, onContentSizeChange, ref: externalRef, ...props }: FlatListProps<T>) => {
   const scrollView = useRef<RNFlatList>(null)
   const isHorizontal = horizontal === true
 
@@ -30,8 +32,10 @@ const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyl
     scrollView.current?.scrollToOffset({ offset, animated })
   }, [])
 
-  const { activeListHeader, handleScrollBeginDrag, handleScrollEndDrag, hiddenHeader, pullSearchMinHeight } = useScrollInit({
+  const { activeListHeader, handleMomentumScrollEnd, handleScrollBeginDrag, handleScrollEndDrag, hiddenHeader, pullSearchMinHeight } = useScrollInit({
     listHeaderComponent: externalListHeaderComponent,
+    onMomentumScrollEnd: externalMomentumScrollEnd,
+    onRefresh: pullSearchHeight ? onRefresh : undefined,
     onScrollBeginDrag: externalScrollBeginDrag,
     onScrollEndDrag: externalScrollEndDrag,
     pullSearchHeight,
@@ -43,7 +47,12 @@ const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyl
     [contentInset.bottom, contentInset.top, externalContentContainerStyle, pullSearchMinHeight]
   )
 
-  const handleScroll = useScrollHandler({ chipHidden, footerFixed, headerFixed })
+  const onPullSearchZoneEnter = useCallback(() => {
+    if (!pullSearchHeight) return
+    scrollView.current?.scrollToOffset({ offset: -contentInset.top + pullSearchHeight, animated: true })
+  }, [contentInset.top, pullSearchHeight])
+
+  const handleScroll = useScrollHandler({ chipHidden, footerFixed, headerFixed, onPullSearchZoneEnter: pullSearchHeight ? onPullSearchZoneEnter : undefined })
 
   const handleScrollToTop = useCallback(() => {
     const offset = pullSearchHeight ? -contentInset.top + pullSearchHeight : -contentInset.top
@@ -55,10 +64,7 @@ const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyl
     [onContentSizeChange]
   )
 
-  const refreshControl = useMemo(
-    () => (onRefresh ? <RefreshControl onRefresh={onRefresh} refreshing={refreshing ?? false} /> : <RefreshControl />),
-    [onRefresh, refreshing]
-  )
+  const refreshControl = useMemo(() => <RefreshControl />, [])
   const nativeGesture = useMemo(() => Gesture.Native(), [])
   const combinedGesture = useMemo(() => (gesture !== undefined ? Gesture.Simultaneous(gesture, nativeGesture) : nativeGesture), [gesture, nativeGesture])
   const detectorGesture = gesture !== undefined ? combinedGesture : undefined
@@ -75,6 +81,7 @@ const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyl
         ListHeaderComponent={activeListHeader}
         maxToRenderPerBatch={50}
         onContentSizeChange={handleContentSizeChange}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
         onScroll={handleScroll}
         onScrollBeginDrag={handleScrollBeginDrag}
         onScrollEndDrag={handleScrollEndDrag}

@@ -1,16 +1,13 @@
-import { type ComponentType, memo, type RefObject, useCallback, useContext, useEffect, useMemo } from 'react'
-import { type NativeScrollEvent, type NativeSyntheticEvent, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native'
+import { type ComponentType, memo, type ReactElement, type RefObject, useCallback, useMemo, useRef } from 'react'
+import { Dimensions, type NativeScrollEvent, type NativeSyntheticEvent, type StyleProp, View, type ViewStyle } from 'react-native'
 import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture-handler'
-import { Chip } from 'react-native-paper'
-import Animated, { useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import Animated from 'react-native-reanimated'
 
 import { RefreshControl } from './internal/RefreshControl'
-import { ScrollViewContext } from './ScrollViewContext'
-import { useKeyboardInset } from './useKeyboardInset'
+import { ScrollViewChip } from './internal/ScrollViewChip'
+import { useScrollHandler } from './internal/useScrollHandler'
+import { useScrollList } from './internal/useScrollList'
 import { useScrollInit } from './useScrollInit'
-
-const CHIP_SLIDE = 48
 
 type ScrollToOffsetRef = { scrollToOffset: (params: { animated?: boolean; offset: number }) => void }
 
@@ -20,101 +17,106 @@ export type CustomListProps<P extends object> = Omit<P, 'contentInset' | 'conten
   gesture?: GestureType
   headerFixed?: boolean
   keyboardAware?: boolean
-  onRefresh?: () => void
+  onMomentumScrollEnd?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
+  onRefresh?: () => Promise<void> | void
   onScrollBeginDrag?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   onScrollEndDrag?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   pullSearchHeight?: number
-  refreshing?: boolean
   scrollRef?: RefObject<ScrollToOffsetRef | null>
   style?: StyleProp<ViewStyle>
 }
 
-const CustomListInner = <P extends object>({ component: List, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, keyboardAware, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, refreshing, scrollRef, style, ...props }: CustomListProps<P>) => {
-  const insets = useSafeAreaInsets()
-  const chipHidden = useSharedValue(1)
-  const { footerHeight, footerFixed: contextFooterLock, headerHeight, headerFixed: contextHeaderLock, pullSearchHeightShared, scrollPosition } = useContext(ScrollViewContext)
-  const headerFixed = headerFixedProp ?? contextHeaderLock
-  const footerFixed = footerFixedProp ?? contextFooterLock
-  const keyboardHeight = useKeyboardInset()
+const CustomListInner = <P extends object>({ component: List, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, keyboardAware, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, scrollRef, style, ...props }: CustomListProps<P>) => {
+  // Intercept ListHeaderComponent so useScrollInit can apply the same 2-phase measurement as FlatList.
+  const { ListHeaderComponent: listHeaderComponent, contentContainerStyle: externalContentContainerStyle, ...restProps } = props as Record<string, unknown>
 
-  useEffect(() => {
-    pullSearchHeightShared.value = pullSearchHeight ?? 0
-  }, [pullSearchHeight, pullSearchHeightShared])
-  const containerStyle = useMemo(() => [StyleSheet.absoluteFill, style], [style])
-  const contentInset = useMemo(
-    () => ({ bottom: (footerFixed ? footerHeight || insets.bottom : insets.bottom) + (keyboardAware ? keyboardHeight : 0), left: 0, right: 0, top: headerHeight }),
-    [footerFixed, footerHeight, insets.bottom, headerHeight, keyboardAware, keyboardHeight]
-  )
-  const contentOffset = useMemo(
-    () => ({ x: 0, y: pullSearchHeight ? -contentInset.top + pullSearchHeight : -contentInset.top }),
-    [contentInset.top, pullSearchHeight]
-  )
-  const chipTop = useMemo(() => (headerFixed ? headerHeight : insets.top) + 4, [headerFixed, headerHeight, insets.top])
+  const { chipAnimatedProps, chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, keyboardAware, pullSearchHeight, style })
 
-  const scrollTo = useCallback((offset: number, animated: boolean) => {
-    scrollRef?.current?.scrollToOffset({ offset, animated })
+  const scrollViewInternal = useRef<ScrollToOffsetRef | null>(null)
+
+  const handleRef = useCallback((el: ScrollToOffsetRef | null) => {
+    scrollViewInternal.current = el
+    if (scrollRef) scrollRef.current = el
   }, [scrollRef])
 
-  const { handleScrollBeginDrag, handleScrollEndDrag } = useScrollInit({
+  const scrollTo = useCallback((offset: number, animated: boolean) => {
+    scrollViewInternal.current?.scrollToOffset({ offset, animated })
+  }, [])
+
+  const { activeListHeader, handleMomentumScrollEnd, handleScrollBeginDrag, handleScrollEndDrag, hiddenHeader, pullSearchMinHeight } = useScrollInit({
+    listHeaderComponent: listHeaderComponent as ComponentType<any> | ReactElement | null | undefined,
+    onMomentumScrollEnd: externalMomentumScrollEnd,
+    onRefresh: pullSearchHeight ? onRefresh : undefined,
     onScrollBeginDrag: externalScrollBeginDrag,
     onScrollEndDrag: externalScrollEndDrag,
     pullSearchHeight,
     scrollTo,
   })
 
-  const chipStyle = useAnimatedStyle(() => ({
-    opacity: chipHidden.value ? withTiming(0) : withTiming(1),
-    transform: [{ translateY: chipHidden.value ? withTiming(-CHIP_SLIDE) : withTiming(0) }]
-  }))
-  const chipAnimatedProps = useAnimatedProps(
-    () => ({ pointerEvents: chipHidden.value ? 'none' : 'box-none' }) as { pointerEvents: 'none' | 'box-none' }
+  const contentContainerStyle = useMemo(
+    () => [{ minHeight: Dimensions.get('window').height - contentInset.top - contentInset.bottom + pullSearchMinHeight }, externalContentContainerStyle],
+    [contentInset.bottom, contentInset.top, externalContentContainerStyle, pullSearchMinHeight]
   )
 
-  const onScroll = useAnimatedScrollHandler(({ contentOffset: { y } }) => {
-    scrollPosition.value = y
-    chipHidden.value = y < 100 ? 1 : 0
-  })
+  const onPullSearchZoneEnter = useCallback(() => {
+    if (!pullSearchHeight) return
+    scrollViewInternal.current?.scrollToOffset({ offset: -contentInset.top + pullSearchHeight, animated: true })
+  }, [contentInset.top, pullSearchHeight])
+
+  const onScroll = useScrollHandler({ chipHidden, footerFixed, headerFixed, onPullSearchZoneEnter: pullSearchHeight ? onPullSearchZoneEnter : undefined })
+
   const handleScrollToTop = useCallback(() => {
     const offset = pullSearchHeight ? -contentInset.top + pullSearchHeight : -contentInset.top
-    scrollRef?.current?.scrollToOffset({ offset, animated: true })
-  }, [contentInset.top, pullSearchHeight, scrollRef])
+    scrollViewInternal.current?.scrollToOffset({ offset, animated: true })
+  }, [contentInset.top, pullSearchHeight])
 
-  const refreshControl = useMemo(
-    () => (onRefresh ? <RefreshControl onRefresh={onRefresh} refreshing={refreshing ?? false} /> : <RefreshControl />),
-    [onRefresh, refreshing]
-  )
+  const refreshControl = useMemo(() => <RefreshControl />, [])
   const nativeGesture = useMemo(() => Gesture.Native(), [])
   const combinedGesture = useMemo(() => (gesture !== undefined ? Gesture.Simultaneous(gesture, nativeGesture) : nativeGesture), [gesture, nativeGesture])
   const detectorGesture = gesture !== undefined ? combinedGesture : undefined
+
   const TypedList = List as ComponentType<{
+    contentContainerStyle?: unknown
     contentInset: typeof contentInset
     contentOffset: typeof contentOffset
+    ListHeaderComponent?: unknown
+    onMomentumScrollEnd: typeof handleMomentumScrollEnd
     onScroll: typeof onScroll
     onScrollBeginDrag: typeof handleScrollBeginDrag
     onScrollEndDrag: typeof handleScrollEndDrag
-    ref?: RefObject<ScrollToOffsetRef | null>
-    refreshControl: React.ReactElement
+    ref?: ((el: ScrollToOffsetRef | null) => void) | RefObject<ScrollToOffsetRef | null>
+    refreshControl: ReactElement
     scrollEventThrottle: 16
     [key: string]: unknown
   }>
+
   const content = (
     <View style={containerStyle}>
-      <TypedList {...(props as unknown as Record<string, unknown>)} contentInset={contentInset} contentOffset={contentOffset} onScroll={onScroll} onScrollBeginDrag={handleScrollBeginDrag} onScrollEndDrag={handleScrollEndDrag} ref={scrollRef} refreshControl={refreshControl} scrollEventThrottle={16} />
-      {scrollRef && (
-        <Animated.View animatedProps={chipAnimatedProps} style={[styles.chip, { top: chipTop }, chipStyle]}>
-          <Chip compact icon='chevron-up' onPress={handleScrollToTop} style={styles.chipInner}>
-            Top
-          </Chip>
-        </Animated.View>
+      <TypedList
+        {...restProps}
+        contentContainerStyle={contentContainerStyle}
+        contentInset={contentInset}
+        contentOffset={contentOffset}
+        ListHeaderComponent={activeListHeader}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
+        onScroll={onScroll}
+        onScrollBeginDrag={handleScrollBeginDrag}
+        onScrollEndDrag={handleScrollEndDrag}
+        ref={handleRef}
+        refreshControl={refreshControl}
+        scrollEventThrottle={16}
+      />
+      {hiddenHeader && (
+        <View pointerEvents='none' style={styles.measureContainer}>
+          {hiddenHeader}
+        </View>
       )}
+      <ScrollViewChip animatedProps={chipAnimatedProps} onPress={handleScrollToTop} style={chipStyle} />
     </View>
   )
   return detectorGesture ? <GestureDetector gesture={detectorGesture}>{content}</GestureDetector> : content
 }
 
-const styles = StyleSheet.create({
-  chip: { alignItems: 'center', left: 0, position: 'absolute', right: 0, zIndex: 3 },
-  chipInner: { elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 2 }
-})
+const styles = { measureContainer: { left: 0, opacity: 0, position: 'absolute' as const, right: 0, top: -9999 } }
 
 export const CustomList = memo(CustomListInner) as typeof CustomListInner

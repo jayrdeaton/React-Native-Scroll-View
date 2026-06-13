@@ -22,10 +22,11 @@ export type ScrollViewProps = RNScrollViewProps & {
   refreshing?: boolean
 }
 
-const ScrollViewInner = ({ children, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, keyboardAware, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, refreshing, style, ...props }: ScrollViewProps) => {
+const ScrollViewInner = ({ children, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, horizontal, keyboardAware, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, refreshing, style, ...props }: ScrollViewProps) => {
   const scrollView = useRef<RNScrollView>(null)
+  const isHorizontal = horizontal === true
 
-  const { chipAnimatedProps, chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, keyboardAware, pullSearchHeight, style })
+  const { chipAnimatedProps, chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, isHorizontal, keyboardAware, pullSearchHeight, style })
 
   const scrollTo = useCallback((offset: number, animated: boolean) => {
     scrollView.current?.scrollTo({ y: offset, animated })
@@ -36,7 +37,7 @@ const ScrollViewInner = ({ children, footerFixed: footerFixedProp, gesture, head
     onScrollBeginDrag: externalScrollBeginDrag,
     onScrollEndDrag: externalScrollEndDrag,
     pullSearchHeight,
-    scrollTo,
+    scrollTo
   })
 
   const onPullSearchZoneEnter = useCallback(() => {
@@ -44,17 +45,18 @@ const ScrollViewInner = ({ children, footerFixed: footerFixedProp, gesture, head
     scrollTo(-contentInset.top + pullSearchHeight, true)
   }, [contentInset.top, pullSearchHeight, scrollTo])
 
-  const handleScroll = useScrollHandler({ chipHidden, footerFixed, headerFixed, onPullSearchZoneEnter: pullSearchHeight ? onPullSearchZoneEnter : undefined })
+  const handleScroll = useScrollHandler({ chipHidden, footerFixed, headerFixed, isHorizontal, onPullSearchZoneEnter: pullSearchHeight ? onPullSearchZoneEnter : undefined })
 
   const handleScrollToTop = useCallback(() => {
+    if (isHorizontal) {
+      scrollView.current?.scrollTo({ x: 0, animated: true })
+      return
+    }
     const offset = pullSearchHeight ? -contentInset.top + pullSearchHeight : -contentInset.top
     scrollView.current?.scrollTo({ y: offset, animated: true })
-  }, [contentInset.top, pullSearchHeight])
+  }, [isHorizontal, contentInset.top, pullSearchHeight])
 
-  const refreshControl = useMemo(
-    () => (onRefresh ? <RefreshControl onRefresh={onRefresh} refreshing={refreshing ?? false} /> : <RefreshControl />),
-    [onRefresh, refreshing]
-  )
+  const refreshControl = useMemo(() => (onRefresh ? <RefreshControl onRefresh={onRefresh} refreshing={refreshing ?? false} /> : <RefreshControl />), [onRefresh, refreshing])
   const nativeGesture = useMemo(() => Gesture.Native(), [])
   const combinedGesture = useMemo(() => (gesture !== undefined ? Gesture.Simultaneous(gesture, nativeGesture) : nativeGesture), [gesture, nativeGesture])
   const detectorGesture = gesture !== undefined ? combinedGesture : undefined
@@ -78,7 +80,7 @@ const ScrollViewInner = ({ children, footerFixed: footerFixedProp, gesture, head
       >
         {children}
       </Animated.ScrollView>
-      <ScrollViewChip animatedProps={chipAnimatedProps} onPress={handleScrollToTop} style={chipStyle} />
+      <ScrollViewChip animatedProps={chipAnimatedProps} isHorizontal={isHorizontal} onPress={handleScrollToTop} style={chipStyle} />
     </View>
   )
   return detectorGesture ? <GestureDetector gesture={detectorGesture}>{content}</GestureDetector> : content

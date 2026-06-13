@@ -44,10 +44,10 @@
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
     "dev": "tsup src/index.ts --format cjs,esm --dts --clean --watch",
-    "push": "yalc publish --push",
     "fix": "eslint --fix",
     "lint": "eslint",
     "prepublishOnly": "npm run build",
+    "push": "yalc publish --push",
     "release": "git push --follow-tags",
     "release:major": "npm version major && git push --follow-tags",
     "release:minor": "npm version minor && git push --follow-tags",

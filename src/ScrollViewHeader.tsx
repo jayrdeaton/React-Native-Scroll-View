@@ -63,9 +63,7 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
   const blurStyle = useAnimatedStyle(() => {
     if (!headerHeight) return { height: 0 }
     if (headerFixed) return { height: headerHeight }
-    const translateY = snapBackHeaderShared.value
-      ? headerOffset.value
-      : -Math.max(0, scrollPosition.value + headerHeight - pullSearchHeightShared.value)
+    const translateY = snapBackHeaderShared.value ? headerOffset.value : -Math.max(0, scrollPosition.value + headerHeight - pullSearchHeightShared.value)
     return { height: Math.max(headerHeight + translateY, top) }
   }, [headerFixed, headerHeight, top])
   const progressStyle = useAnimatedStyle(() => {
@@ -118,10 +116,10 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
       </Animated.View>
       {backAction &&
         (effectiveBackActionFixed ? (
-          <View style={leadingStyle}>
+          <Animated.View style={leadingStyle}>
             <ActionBg blur={blur} style={actionStyle} />
             <Appbar.BackAction onPress={backAction} size={iconSize ?? actionSize / 2} style={buttonStyle} />
-          </View>
+          </Animated.View>
         ) : (
           <Animated.View style={[leadingStyle, translateStyle]}>
             <ActionBg blur={blur} style={actionStyle} />

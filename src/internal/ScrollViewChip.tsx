@@ -4,14 +4,15 @@ import Animated from 'react-native-reanimated'
 
 type Props = {
   animatedProps: any
+  isHorizontal?: boolean
   onPress: () => void
   style: any
 }
 
-export const ScrollViewChip = ({ animatedProps, onPress, style }: Props) => (
+export const ScrollViewChip = ({ animatedProps, isHorizontal, onPress, style }: Props) => (
   <Animated.View animatedProps={animatedProps} style={[styles.chip, style]}>
-    <Chip compact icon='chevron-up' onPress={onPress} style={styles.chipInner}>
-      Top
+    <Chip compact icon={isHorizontal ? 'chevron-left' : 'chevron-up'} onPress={onPress} style={styles.chipInner}>
+      {isHorizontal ? 'Start' : 'Top'}
     </Chip>
   </Animated.View>
 )

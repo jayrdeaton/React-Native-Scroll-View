@@ -1,4 +1,4 @@
-import { createElement, type ComponentType, type ReactElement, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { type ComponentType, createElement, type ReactElement, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
 
 import { ScrollViewContext } from './ScrollViewContext'
@@ -106,12 +106,7 @@ export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: extern
   )
 
   const activeListHeader = hasPullSearch && phase === 'measuring' ? null : listHeaderComponent
-  const hiddenHeader =
-    phase === 'measuring' && listHeaderComponent != null
-      ? typeof listHeaderComponent === 'function'
-        ? createElement(listHeaderComponent as ComponentType)
-        : (listHeaderComponent as ReactElement)
-      : null
+  const hiddenHeader = phase === 'measuring' && listHeaderComponent != null ? (typeof listHeaderComponent === 'function' ? createElement(listHeaderComponent as ComponentType) : (listHeaderComponent as ReactElement)) : null
 
   return { activeListHeader, handleMomentumScrollEnd, handleScrollBeginDrag, handleScrollEndDrag, hiddenHeader, pullSearchMinHeight: pullSearchHeight ?? 0 }
 }

@@ -55,10 +55,17 @@ export const PullSearch = forwardRef<PullSearchHandle, PullSearchProps>(function
     onChangeText('')
   }, [onChangeText])
 
-  const handleLayout = useCallback(({ nativeEvent: { layout: { height } } }: LayoutChangeEvent) => {
-    setBarHeight(height)
-    onHeightChange(height)
-  }, [onHeightChange])
+  const handleLayout = useCallback(
+    ({
+      nativeEvent: {
+        layout: { height }
+      }
+    }: LayoutChangeEvent) => {
+      setBarHeight(height)
+      onHeightChange(height)
+    },
+    [onHeightChange]
+  )
 
   useEffect(() => {
     const normalizedValue = value.trim()
@@ -81,17 +88,7 @@ export const PullSearch = forwardRef<PullSearchHandle, PullSearchProps>(function
 
   return (
     <Animated.View onLayout={handleLayout} style={[styles.container, animatedStyle]}>
-      <Searchbar
-        autoCorrect={false}
-        onChangeText={(text) => setValue((text || '').trimStart())}
-        onClearIconPress={handleClear}
-        placeholder={placeholder}
-        placeholderTextColor={theme.colors.onSurfaceVariant}
-        ref={inputRef}
-        spellCheck={false}
-        style={styles.input}
-        value={value}
-      />
+      <Searchbar autoCorrect={false} onChangeText={(text) => setValue((text || '').trimStart())} onClearIconPress={handleClear} placeholder={placeholder} placeholderTextColor={theme.colors.onSurfaceVariant} ref={inputRef} spellCheck={false} style={styles.input} value={value} />
     </Animated.View>
   )
 })

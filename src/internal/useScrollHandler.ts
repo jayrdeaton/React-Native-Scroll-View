@@ -8,10 +8,11 @@ type UseScrollHandlerOptions = {
   chipHidden: SharedValue<number>
   footerFixed: boolean
   headerFixed: boolean
+  isHorizontal?: boolean
   onPullSearchZoneEnter?: () => void
 }
 
-export function useScrollHandler({ chipHidden, footerFixed, headerFixed, onPullSearchZoneEnter }: UseScrollHandlerOptions) {
+export function useScrollHandler({ chipHidden, footerFixed, headerFixed, isHorizontal, onPullSearchZoneEnter }: UseScrollHandlerOptions) {
   const { footerHeightShared, footerOffset, headerHeightShared, headerOffset, pullSearchHeightShared, scrollPosition, snapBackFooterShared, snapBackHeaderShared } = useContext(ScrollViewContext)
   const snapUpAccum = useSharedValue(0)
   const fromBottomBounce = useSharedValue(false)
@@ -20,8 +21,13 @@ export function useScrollHandler({ chipHidden, footerFixed, headerFixed, onPullS
 
   return useAnimatedScrollHandler(
     {
-      onScroll: ({ contentOffset: { y }, contentSize: { height: contentHeight }, layoutMeasurement: { height: layoutHeight } }) => {
+      onScroll: ({ contentOffset: { x, y }, contentSize: { height: contentHeight, width: contentWidth }, layoutMeasurement: { height: layoutHeight, width: layoutWidth } }) => {
         'worklet'
+        if (isHorizontal) {
+          scrollPosition.value = x
+          chipHidden.value = x < 100 ? 1 : 0
+          return
+        }
         const delta = y - scrollPosition.value
         scrollPosition.value = y
         chipHidden.value = y < 100 ? 1 : 0
@@ -76,6 +82,7 @@ export function useScrollHandler({ chipHidden, footerFixed, headerFixed, onPullS
       },
       onEndDrag: ({ contentOffset: { y }, contentSize: { height: contentHeight }, layoutMeasurement: { height: layoutHeight } }) => {
         'worklet'
+        if (isHorizontal) return
         if (y >= contentHeight - layoutHeight - 10) {
           fromBottomBounce.value = true
           snapUpAccum.value = 0
@@ -87,8 +94,8 @@ export function useScrollHandler({ chipHidden, footerFixed, headerFixed, onPullS
         momentumPullSearchFired.value = false
         fromBottomBounce.value = false
         snapUpAccum.value = 0
-      },
+      }
     },
-    [headerFixed, footerFixed, onPullSearchZoneEnter]
+    [headerFixed, footerFixed, isHorizontal, onPullSearchZoneEnter]
   )
 }

@@ -1,4 +1,4 @@
-import { type ComponentType, memo, type ReactElement, type RefObject, useCallback, useMemo, useRef } from 'react'
+import { type ComponentType, memo, type ReactElement, type ReactNode, type RefObject, useCallback, useMemo, useRef } from 'react'
 import { Dimensions, type NativeScrollEvent, type NativeSyntheticEvent, type StyleProp, View, type ViewStyle } from 'react-native'
 import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture-handler'
 import Animated from 'react-native-reanimated'
@@ -13,6 +13,7 @@ type ScrollToOffsetRef = { scrollToOffset: (params: { animated?: boolean; offset
 
 export type CustomListProps<P extends object> = Omit<P, 'contentInset' | 'contentOffset' | 'onScroll' | 'refreshControl' | 'scrollEventThrottle'> & {
   component: ComponentType<P>
+  renderFilters?: ReactNode
   footerFixed?: boolean
   gesture?: GestureType
   headerFixed?: boolean
@@ -26,7 +27,7 @@ export type CustomListProps<P extends object> = Omit<P, 'contentInset' | 'conten
   style?: StyleProp<ViewStyle>
 }
 
-const CustomListInner = <P extends object>({ component: List, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, keyboardAware, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, scrollRef, style, ...props }: CustomListProps<P>) => {
+const CustomListInner = <P extends object>({ component: List, renderFilters, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, keyboardAware, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, scrollRef, style, ...props }: CustomListProps<P>) => {
   // Intercept ListHeaderComponent so useScrollInit can apply the same 2-phase measurement as FlatList.
   const { ListHeaderComponent: listHeaderComponent, contentContainerStyle: externalContentContainerStyle, ...restProps } = props as Record<string, unknown>
 
@@ -34,29 +35,47 @@ const CustomListInner = <P extends object>({ component: List, footerFixed: foote
 
   const scrollViewInternal = useRef<ScrollToOffsetRef | null>(null)
 
-  const handleRef = useCallback((el: ScrollToOffsetRef | null) => {
-    scrollViewInternal.current = el
-    if (scrollRef) scrollRef.current = el
-  }, [scrollRef])
+  const handleRef = useCallback(
+    (el: ScrollToOffsetRef | null) => {
+      scrollViewInternal.current = el
+      if (scrollRef) scrollRef.current = el
+    },
+    [scrollRef]
+  )
 
   const scrollTo = useCallback((offset: number, animated: boolean) => {
     scrollViewInternal.current?.scrollToOffset({ offset, animated })
   }, [])
 
-  const { activeListHeader, handleMomentumScrollEnd, handleScrollBeginDrag, handleScrollEndDrag, hiddenHeader, pullSearchMinHeight } = useScrollInit({
+  const {
+    activeListHeader: pullSearchHeader,
+    handleMomentumScrollEnd,
+    handleScrollBeginDrag,
+    handleScrollEndDrag,
+    hiddenHeader,
+    pullSearchMinHeight
+  } = useScrollInit({
     listHeaderComponent: listHeaderComponent as ComponentType<any> | ReactElement | null | undefined,
     onMomentumScrollEnd: externalMomentumScrollEnd,
     onRefresh: pullSearchHeight ? onRefresh : undefined,
     onScrollBeginDrag: externalScrollBeginDrag,
     onScrollEndDrag: externalScrollEndDrag,
     pullSearchHeight,
-    scrollTo,
+    scrollTo
   })
 
-  const contentContainerStyle = useMemo(
-    () => [{ minHeight: Dimensions.get('window').height - contentInset.top - contentInset.bottom + pullSearchMinHeight }, externalContentContainerStyle],
-    [contentInset.bottom, contentInset.top, externalContentContainerStyle, pullSearchMinHeight]
-  )
+  const activeListHeader = useMemo(() => {
+    if (!renderFilters) return pullSearchHeader
+    const Inner = pullSearchHeader
+    return () => (
+      <>
+        {Inner ? typeof Inner === 'function' ? <Inner /> : Inner : null}
+        {renderFilters}
+      </>
+    )
+  }, [pullSearchHeader, renderFilters])
+
+  const contentContainerStyle = useMemo(() => [{ minHeight: Dimensions.get('window').height - contentInset.top - contentInset.bottom + pullSearchMinHeight }, externalContentContainerStyle], [contentInset.bottom, contentInset.top, externalContentContainerStyle, pullSearchMinHeight])
 
   const onPullSearchZoneEnter = useCallback(() => {
     if (!pullSearchHeight) return
@@ -92,20 +111,7 @@ const CustomListInner = <P extends object>({ component: List, footerFixed: foote
 
   const content = (
     <View style={containerStyle}>
-      <TypedList
-        {...restProps}
-        contentContainerStyle={contentContainerStyle}
-        contentInset={contentInset}
-        contentOffset={contentOffset}
-        ListHeaderComponent={activeListHeader}
-        onMomentumScrollEnd={handleMomentumScrollEnd}
-        onScroll={onScroll}
-        onScrollBeginDrag={handleScrollBeginDrag}
-        onScrollEndDrag={handleScrollEndDrag}
-        ref={handleRef}
-        refreshControl={refreshControl}
-        scrollEventThrottle={16}
-      />
+      <TypedList {...restProps} contentContainerStyle={contentContainerStyle} contentInset={contentInset} contentOffset={contentOffset} ListHeaderComponent={activeListHeader} onMomentumScrollEnd={handleMomentumScrollEnd} onScroll={onScroll} onScrollBeginDrag={handleScrollBeginDrag} onScrollEndDrag={handleScrollEndDrag} ref={handleRef} refreshControl={refreshControl} scrollEventThrottle={16} />
       {hiddenHeader && (
         <View pointerEvents='none' style={styles.measureContainer}>
           {hiddenHeader}

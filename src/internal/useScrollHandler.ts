@@ -21,7 +21,7 @@ export function useScrollHandler({ chipHidden, footerFixed, headerFixed, isHoriz
 
   return useAnimatedScrollHandler(
     {
-      onScroll: ({ contentOffset: { x, y }, contentSize: { height: contentHeight, width: contentWidth }, layoutMeasurement: { height: layoutHeight, width: layoutWidth } }) => {
+      onScroll: ({ contentOffset: { x, y }, contentSize: { height: contentHeight }, layoutMeasurement: { height: layoutHeight } }) => {
         'worklet'
         if (isHorizontal) {
           scrollPosition.value = x

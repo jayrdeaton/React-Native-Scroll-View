@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo } from 'react'
 import { type StyleProp, StyleSheet, type ViewStyle } from 'react-native'
-import { useAnimatedProps, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
+import { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ScrollViewContext } from '../ScrollViewContext'
@@ -41,9 +41,11 @@ export function useScrollList({ footerFixed: footerFixedProp, headerFixed: heade
 
   const chipHidden = useSharedValue(1)
   const chipStyle = useAnimatedStyle(() => {
+    const pointerEvents = chipHidden.value ? ('none' as const) : ('box-none' as const)
     if (isHorizontal) {
       return {
         opacity: chipHidden.value ? withTiming(0) : withTiming(1),
+        pointerEvents,
         top: Math.max(headerHeight, insets.top) + 4,
         transform: [{ translateX: chipHidden.value ? withTiming(-CHIP_SLIDE) : withTiming(0) }]
       }
@@ -52,11 +54,11 @@ export function useScrollList({ footerFixed: footerFixedProp, headerFixed: heade
     const top = Math.max(headerHeight - slide, insets.top) + 4
     return {
       opacity: chipHidden.value ? withTiming(0) : withTiming(1),
+      pointerEvents,
       top,
       transform: [{ translateY: chipHidden.value ? withTiming(-CHIP_SLIDE) : withTiming(0) }]
     }
   }, [isHorizontal, headerFixed, headerHeight, insets.top])
-  const chipAnimatedProps = useAnimatedProps(() => ({ pointerEvents: chipHidden.value ? 'none' : 'box-none' }) as { pointerEvents: 'none' | 'box-none' })
 
-  return { chipAnimatedProps, chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed, headerHeight, insets, isHorizontal: isHorizontal ?? false }
+  return { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed, headerHeight, insets, isHorizontal: isHorizontal ?? false }
 }

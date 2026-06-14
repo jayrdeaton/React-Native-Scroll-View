@@ -1,16 +1,15 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet, type ViewStyle } from 'react-native'
 import { Chip } from 'react-native-paper'
-import Animated from 'react-native-reanimated'
+import Animated, { type AnimatedStyle } from 'react-native-reanimated'
 
 type Props = {
-  animatedProps: any
   isHorizontal?: boolean
   onPress: () => void
-  style: any
+  style: AnimatedStyle<ViewStyle>
 }
 
-export const ScrollViewChip = ({ animatedProps, isHorizontal, onPress, style }: Props) => (
-  <Animated.View animatedProps={animatedProps} style={[styles.chip, style]}>
+export const ScrollViewChip = ({ isHorizontal, onPress, style }: Props) => (
+  <Animated.View style={[styles.chip, style]}>
     <Chip compact icon={isHorizontal ? 'chevron-left' : 'chevron-up'} onPress={onPress} style={styles.chipInner}>
       {isHorizontal ? 'Start' : 'Top'}
     </Chip>

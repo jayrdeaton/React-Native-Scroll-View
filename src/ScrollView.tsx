@@ -26,7 +26,7 @@ const ScrollViewInner = ({ children, footerFixed: footerFixedProp, gesture, head
   const scrollView = useRef<RNScrollView>(null)
   const isHorizontal = horizontal === true
 
-  const { chipAnimatedProps, chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, isHorizontal, keyboardAware, pullSearchHeight, style })
+  const { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, isHorizontal, keyboardAware, pullSearchHeight, style })
 
   const scrollTo = useCallback((offset: number, animated: boolean) => {
     scrollView.current?.scrollTo({ y: offset, animated })
@@ -80,7 +80,7 @@ const ScrollViewInner = ({ children, footerFixed: footerFixedProp, gesture, head
       >
         {children}
       </Animated.ScrollView>
-      <ScrollViewChip animatedProps={chipAnimatedProps} isHorizontal={isHorizontal} onPress={handleScrollToTop} style={chipStyle} />
+      <ScrollViewChip isHorizontal={isHorizontal} onPress={handleScrollToTop} style={chipStyle} />
     </View>
   )
   return detectorGesture ? <GestureDetector gesture={detectorGesture}>{content}</GestureDetector> : content

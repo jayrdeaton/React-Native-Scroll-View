@@ -4,7 +4,7 @@ import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
 import { ScrollViewContext } from './ScrollViewContext'
 
 export type UseScrollInitOptions = {
-  listHeaderComponent?: ComponentType<any> | ReactElement | null
+  listHeaderComponent?: ComponentType<object> | ReactElement | null
   onMomentumScrollEnd?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   onRefresh?: () => Promise<void> | void
   onScrollBeginDrag?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
@@ -14,7 +14,7 @@ export type UseScrollInitOptions = {
 }
 
 export type UseScrollInitResult = {
-  activeListHeader: ComponentType<any> | ReactElement | null | undefined
+  activeListHeader: ComponentType<object> | ReactElement | null | undefined
   handleMomentumScrollEnd: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   handleScrollBeginDrag: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   handleScrollEndDrag: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
@@ -106,7 +106,7 @@ export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: extern
   )
 
   const activeListHeader = hasPullSearch && phase === 'measuring' ? null : listHeaderComponent
-  const hiddenHeader = phase === 'measuring' && listHeaderComponent != null ? (typeof listHeaderComponent === 'function' ? createElement(listHeaderComponent as ComponentType) : (listHeaderComponent as ReactElement)) : null
+  const hiddenHeader = phase === 'measuring' && listHeaderComponent != null ? (typeof listHeaderComponent === 'function' ? createElement(listHeaderComponent as ComponentType<object>) : (listHeaderComponent as ReactElement)) : null
 
   return { activeListHeader, handleMomentumScrollEnd, handleScrollBeginDrag, handleScrollEndDrag, hiddenHeader, pullSearchMinHeight: pullSearchHeight ?? 0 }
 }

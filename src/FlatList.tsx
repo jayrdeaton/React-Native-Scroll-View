@@ -24,12 +24,12 @@ export type FlatListProps<T> = Omit<RNFlatListProps<T>, 'onRefresh' | 'refreshin
   ref?: RefObject<RNFlatList | null>
 }
 
-const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyle, data, renderFilters, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, horizontal, keyboardAware, ListHeaderComponent: externalListHeaderComponent, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pagingEnabled, pullSearchHeight, style, onContentSizeChange, ref: externalRef, ...props }: FlatListProps<T>) => {
+const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyle, data, initialNumToRender = 20, maxToRenderPerBatch = 50, renderFilters, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, horizontal, keyboardAware, ListHeaderComponent: externalListHeaderComponent, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pagingEnabled, pullSearchHeight, removeClippedSubviews = false, showsHorizontalScrollIndicator, showsVerticalScrollIndicator, style, onContentSizeChange, ref: externalRef, windowSize = 100, ...props }: FlatListProps<T>) => {
   const scrollView = useRef<RNFlatList>(null)
   const isHorizontal = horizontal === true
   const showDots = isHorizontal && pagingEnabled === true && (data?.length ?? 0) > 1
 
-  const { chipAnimatedProps, chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, isHorizontal, keyboardAware, pullSearchHeight, style })
+  const { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, isHorizontal, keyboardAware, pullSearchHeight, style })
 
   const scrollTo = useCallback((offset: number, animated: boolean) => {
     scrollView.current?.scrollToOffset({ offset, animated })
@@ -96,15 +96,15 @@ const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyl
   const content = (
     <View style={containerStyle}>
       <Animated.FlatList
-        {...(props as any)}
+        {...(props as Omit<RNFlatListProps<T>, 'CellRendererComponent'>)}
         contentContainerStyle={contentContainerStyle}
         contentInset={contentInset}
         contentOffset={contentOffset}
         data={data}
         horizontal={isHorizontal}
-        initialNumToRender={20}
+        initialNumToRender={initialNumToRender}
         ListHeaderComponent={activeListHeader}
-        maxToRenderPerBatch={50}
+        maxToRenderPerBatch={maxToRenderPerBatch}
         onContentSizeChange={handleContentSizeChange}
         onMomentumScrollEnd={handleMomentumScrollEnd}
         onScroll={handleScroll}
@@ -116,18 +116,18 @@ const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyl
           scrollView.current = el
         }}
         refreshControl={refreshControl}
-        removeClippedSubviews={false}
+        removeClippedSubviews={removeClippedSubviews}
         scrollEventThrottle={16}
-        showsHorizontalScrollIndicator={isHorizontal}
-        showsVerticalScrollIndicator={!isHorizontal}
-        windowSize={100}
+        showsHorizontalScrollIndicator={showsHorizontalScrollIndicator ?? isHorizontal}
+        showsVerticalScrollIndicator={showsVerticalScrollIndicator ?? !isHorizontal}
+        windowSize={windowSize}
       />
       {hiddenHeader && (
         <View pointerEvents='none' style={styles.measureContainer}>
           {hiddenHeader}
         </View>
       )}
-      <ScrollViewChip animatedProps={chipAnimatedProps} isHorizontal={isHorizontal} onPress={handleScrollToTop} style={chipStyle} />
+      <ScrollViewChip isHorizontal={isHorizontal} onPress={handleScrollToTop} style={chipStyle} />
       {showDots && <HorizontalDots total={data?.length ?? 0} />}
     </View>
   )

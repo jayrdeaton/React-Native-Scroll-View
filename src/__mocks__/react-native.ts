@@ -25,3 +25,6 @@ export const Pressable = stub
 export const TouchableOpacity = stub
 export const FlatList = jest.fn(stub)
 export const RefreshControl = jest.fn(stub)
+export const SectionList = jest.fn(stub)
+export const ScrollView = jest.fn(stub)
+export const useWindowDimensions = () => ({ width: 390, height: 844, fontScale: 1, scale: 1 })

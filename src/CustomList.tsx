@@ -1,7 +1,6 @@
 import { type ComponentType, memo, type ReactElement, type ReactNode, type RefObject, useCallback, useMemo, useRef } from 'react'
 import { Dimensions, type NativeScrollEvent, type NativeSyntheticEvent, type StyleProp, View, type ViewStyle } from 'react-native'
 import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture-handler'
-import Animated from 'react-native-reanimated'
 
 import { RefreshControl } from './internal/RefreshControl'
 import { ScrollViewChip } from './internal/ScrollViewChip'
@@ -31,7 +30,7 @@ const CustomListInner = <P extends object>({ component: List, renderFilters, foo
   // Intercept ListHeaderComponent so useScrollInit can apply the same 2-phase measurement as FlatList.
   const { ListHeaderComponent: listHeaderComponent, contentContainerStyle: externalContentContainerStyle, ...restProps } = props as Record<string, unknown>
 
-  const { chipAnimatedProps, chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, keyboardAware, pullSearchHeight, style })
+  const { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, keyboardAware, pullSearchHeight, style })
 
   const scrollViewInternal = useRef<ScrollToOffsetRef | null>(null)
 
@@ -55,7 +54,7 @@ const CustomListInner = <P extends object>({ component: List, renderFilters, foo
     hiddenHeader,
     pullSearchMinHeight
   } = useScrollInit({
-    listHeaderComponent: listHeaderComponent as ComponentType<any> | ReactElement | null | undefined,
+    listHeaderComponent: listHeaderComponent as ComponentType<object> | ReactElement | null | undefined,
     onMomentumScrollEnd: externalMomentumScrollEnd,
     onRefresh: pullSearchHeight ? onRefresh : undefined,
     onScrollBeginDrag: externalScrollBeginDrag,
@@ -117,7 +116,7 @@ const CustomListInner = <P extends object>({ component: List, renderFilters, foo
           {hiddenHeader}
         </View>
       )}
-      <ScrollViewChip animatedProps={chipAnimatedProps} onPress={handleScrollToTop} style={chipStyle} />
+      <ScrollViewChip onPress={handleScrollToTop} style={chipStyle} />
     </View>
   )
   return detectorGesture ? <GestureDetector gesture={detectorGesture}>{content}</GestureDetector> : content

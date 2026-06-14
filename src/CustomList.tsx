@@ -3,7 +3,7 @@ import { Dimensions, type NativeScrollEvent, type NativeSyntheticEvent, type Sty
 import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture-handler'
 
 import { RefreshControl } from './internal/RefreshControl'
-import { ScrollViewChip } from './internal/ScrollViewChip'
+import { type ChipProps, ScrollViewChip } from './internal/ScrollViewChip'
 import { useScrollHandler } from './internal/useScrollHandler'
 import { useScrollList } from './internal/useScrollList'
 import { useScrollInit } from './useScrollInit'
@@ -11,12 +11,15 @@ import { useScrollInit } from './useScrollInit'
 type ScrollToOffsetRef = { scrollToOffset: (params: { animated?: boolean; offset: number }) => void }
 
 export type CustomListProps<P extends object> = Omit<P, 'contentInset' | 'contentOffset' | 'onScroll' | 'refreshControl' | 'scrollEventThrottle'> & {
+  chipProps?: ChipProps
+  chipThreshold?: number
   component: ComponentType<P>
   renderFilters?: ReactNode
   footerFixed?: boolean
   gesture?: GestureType
   headerFixed?: boolean
   keyboardAware?: boolean
+  onChipPress?: () => void
   onMomentumScrollEnd?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   onRefresh?: () => Promise<void> | void
   onScrollBeginDrag?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
@@ -26,7 +29,7 @@ export type CustomListProps<P extends object> = Omit<P, 'contentInset' | 'conten
   style?: StyleProp<ViewStyle>
 }
 
-const CustomListInner = <P extends object>({ component: List, renderFilters, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, keyboardAware, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, scrollRef, style, ...props }: CustomListProps<P>) => {
+const CustomListInner = <P extends object>({ chipProps, chipThreshold, component: List, renderFilters, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, keyboardAware, onChipPress, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, scrollRef, style, ...props }: CustomListProps<P>) => {
   // Intercept ListHeaderComponent so useScrollInit can apply the same 2-phase measurement as FlatList.
   const { ListHeaderComponent: listHeaderComponent, contentContainerStyle: externalContentContainerStyle, ...restProps } = props as Record<string, unknown>
 
@@ -81,7 +84,7 @@ const CustomListInner = <P extends object>({ component: List, renderFilters, foo
     scrollViewInternal.current?.scrollToOffset({ offset: -contentInset.top + pullSearchHeight, animated: true })
   }, [contentInset.top, pullSearchHeight])
 
-  const onScroll = useScrollHandler({ chipHidden, footerFixed, headerFixed, onPullSearchZoneEnter: pullSearchHeight ? onPullSearchZoneEnter : undefined })
+  const onScroll = useScrollHandler({ chipHidden, chipThreshold, footerFixed, headerFixed, onPullSearchZoneEnter: pullSearchHeight ? onPullSearchZoneEnter : undefined })
 
   const handleScrollToTop = useCallback(() => {
     const offset = pullSearchHeight ? -contentInset.top + pullSearchHeight : -contentInset.top
@@ -116,7 +119,7 @@ const CustomListInner = <P extends object>({ component: List, renderFilters, foo
           {hiddenHeader}
         </View>
       )}
-      <ScrollViewChip onPress={handleScrollToTop} style={chipStyle} />
+      <ScrollViewChip chipProps={chipProps} onChipPress={onChipPress} onPress={handleScrollToTop} style={chipStyle} />
     </View>
   )
   return detectorGesture ? <GestureDetector gesture={detectorGesture}>{content}</GestureDetector> : content

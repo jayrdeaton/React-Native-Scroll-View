@@ -5,17 +5,20 @@ import Animated from 'react-native-reanimated'
 
 import { HorizontalDots } from './internal/HorizontalDots'
 import { RefreshControl } from './internal/RefreshControl'
-import { ScrollViewChip } from './internal/ScrollViewChip'
+import { type ChipProps, ScrollViewChip } from './internal/ScrollViewChip'
 import { useScrollHandler } from './internal/useScrollHandler'
 import { useScrollList } from './internal/useScrollList'
 import { useScrollInit } from './useScrollInit'
 
 export type FlatListProps<T> = Omit<RNFlatListProps<T>, 'onRefresh' | 'refreshing'> & {
+  chipProps?: ChipProps
+  chipThreshold?: number
   renderFilters?: ReactNode
   footerFixed?: boolean
   gesture?: GestureType
   headerFixed?: boolean
   keyboardAware?: boolean
+  onChipPress?: () => void
   onMomentumScrollEnd?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   onRefresh?: () => Promise<void> | void
   onScrollBeginDrag?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
@@ -24,7 +27,7 @@ export type FlatListProps<T> = Omit<RNFlatListProps<T>, 'onRefresh' | 'refreshin
   ref?: RefObject<RNFlatList | null>
 }
 
-const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyle, data, initialNumToRender = 20, maxToRenderPerBatch = 50, renderFilters, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, horizontal, keyboardAware, ListHeaderComponent: externalListHeaderComponent, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pagingEnabled, pullSearchHeight, removeClippedSubviews = false, showsHorizontalScrollIndicator, showsVerticalScrollIndicator, style, onContentSizeChange, ref: externalRef, windowSize = 100, ...props }: FlatListProps<T>) => {
+const FlatListInner = <T,>({ chipProps, chipThreshold, contentContainerStyle: externalContentContainerStyle, data, initialNumToRender = 20, maxToRenderPerBatch = 50, renderFilters, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, horizontal, keyboardAware, ListHeaderComponent: externalListHeaderComponent, onChipPress, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pagingEnabled, pullSearchHeight, removeClippedSubviews = false, showsHorizontalScrollIndicator, showsVerticalScrollIndicator, style, onContentSizeChange, ref: externalRef, windowSize = 100, ...props }: FlatListProps<T>) => {
   const scrollView = useRef<RNFlatList>(null)
   const isHorizontal = horizontal === true
   const showDots = isHorizontal && pagingEnabled === true && (data?.length ?? 0) > 1
@@ -70,7 +73,7 @@ const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyl
     scrollView.current?.scrollToOffset({ offset: -contentInset.top + pullSearchHeight, animated: true })
   }, [contentInset.top, pullSearchHeight])
 
-  const handleScroll = useScrollHandler({ chipHidden, footerFixed, headerFixed, isHorizontal, onPullSearchZoneEnter: pullSearchHeight ? onPullSearchZoneEnter : undefined })
+  const handleScroll = useScrollHandler({ chipHidden, chipThreshold, footerFixed, headerFixed, isHorizontal, onPullSearchZoneEnter: pullSearchHeight ? onPullSearchZoneEnter : undefined })
 
   const handleScrollToTop = useCallback(() => {
     if (isHorizontal) {
@@ -127,7 +130,7 @@ const FlatListInner = <T,>({ contentContainerStyle: externalContentContainerStyl
           {hiddenHeader}
         </View>
       )}
-      <ScrollViewChip isHorizontal={isHorizontal} onPress={handleScrollToTop} style={chipStyle} />
+      <ScrollViewChip chipProps={chipProps} isHorizontal={isHorizontal} onChipPress={onChipPress} onPress={handleScrollToTop} style={chipStyle} />
       {showDots && <HorizontalDots total={data?.length ?? 0} />}
     </View>
   )

@@ -6,13 +6,14 @@ import { ScrollViewContext } from '../ScrollViewContext'
 
 type UseScrollHandlerOptions = {
   chipHidden: SharedValue<number>
+  chipThreshold?: number
   footerFixed: boolean
   headerFixed: boolean
   isHorizontal?: boolean
   onPullSearchZoneEnter?: () => void
 }
 
-export function useScrollHandler({ chipHidden, footerFixed, headerFixed, isHorizontal, onPullSearchZoneEnter }: UseScrollHandlerOptions) {
+export function useScrollHandler({ chipHidden, chipThreshold = 100, footerFixed, headerFixed, isHorizontal, onPullSearchZoneEnter }: UseScrollHandlerOptions) {
   const { footerHeightShared, footerOffset, headerHeightShared, headerOffset, pullSearchHeightShared, scrollPosition, snapBackFooterShared, snapBackHeaderShared } = useContext(ScrollViewContext)
   const snapUpAccum = useSharedValue(0)
   const fromBottomBounce = useSharedValue(false)
@@ -25,12 +26,12 @@ export function useScrollHandler({ chipHidden, footerFixed, headerFixed, isHoriz
         'worklet'
         if (isHorizontal) {
           scrollPosition.value = x
-          chipHidden.value = x < 100 ? 1 : 0
+          chipHidden.value = x < chipThreshold ? 1 : 0
           return
         }
         const delta = y - scrollPosition.value
         scrollPosition.value = y
-        chipHidden.value = y < 100 ? 1 : 0
+        chipHidden.value = y < chipThreshold ? 1 : 0
         const maxScroll = contentHeight - layoutHeight
         if (maxScroll > 0 && y >= maxScroll) {
           fromBottomBounce.value = true
@@ -96,6 +97,6 @@ export function useScrollHandler({ chipHidden, footerFixed, headerFixed, isHoriz
         snapUpAccum.value = 0
       }
     },
-    [headerFixed, footerFixed, isHorizontal, onPullSearchZoneEnter]
+    [headerFixed, footerFixed, isHorizontal, chipThreshold, onPullSearchZoneEnter]
   )
 }

@@ -38,7 +38,7 @@ import { ScrollViewSettingsProvider } from '@rific/scroll-view'
 
 export default function RootLayout({ children }) {
   return (
-    <ScrollViewSettingsProvider value={{ snapBack: true }}>
+    <ScrollViewSettingsProvider initialValue={{ snapBack: true }}>
       {children}
     </ScrollViewSettingsProvider>
   )
@@ -48,6 +48,18 @@ export default function RootLayout({ children }) {
 ---
 
 ## Components
+
+### `ScrollViewSettingsProvider`
+
+App-wide defaults for scroll settings. Wrap your root layout to set global defaults.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | — |
+| `initialValue` | `Partial<ScrollViewSettings>` | Initial settings applied once on mount |
+| `onChange` | `(settings: ScrollViewSettings) => void` | Called whenever settings change |
+
+---
 
 ### `ScrollViewProvider`
 
@@ -105,14 +117,17 @@ Drop-in for React Native's `ScrollView`. Accepts all `ScrollViewProps` plus:
 
 | Prop | Type | Description |
 |------|------|-------------|
+| `chipProps` | `ChipProps` | Customize the scroll-to-top chip (label, style, etc.) |
+| `chipThreshold` | `number` | Scroll offset (px) before the chip appears. Default `100` |
 | `footerFixed` | `boolean` | Pin footer for this scroll view; overrides provider |
-| `headerFixed` | `boolean` | Pin header for this scroll view; overrides provider |
 | `gesture` | `GestureType` | Compose with an external RNGH gesture |
+| `headerFixed` | `boolean` | Pin header for this scroll view; overrides provider |
 | `keyboardAware` | `boolean` | Add keyboard height to bottom content inset |
+| `onChipPress` | `() => void` | Additional callback fired when the chip is pressed |
 | `onRefresh` | `() => void` | Enables pull-to-refresh |
-| `refreshing` | `boolean` | Controlled refreshing state |
 | `pullSearchHeight` | `number` | Reserve space above content for `PullSearch` |
 | `ref` | `RefObject<RNScrollView>` | Forward ref to the underlying scroll view |
+| `refreshing` | `boolean` | Controlled refreshing state |
 
 ---
 
@@ -122,14 +137,17 @@ Drop-in for React Native's `FlatList`. Accepts all `FlatListProps<T>` plus:
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `renderFilters` | `ReactNode` | Rendered below `ListHeaderComponent`, above list items |
+| `chipProps` | `ChipProps` | Customize the scroll-to-top/start chip (label, style, etc.) |
+| `chipThreshold` | `number` | Scroll offset (px) before the chip appears. Default `100` |
 | `footerFixed` | `boolean` | Pin footer for this list; overrides provider |
-| `headerFixed` | `boolean` | Pin header for this list; overrides provider |
 | `gesture` | `GestureType` | Compose with an external RNGH gesture |
+| `headerFixed` | `boolean` | Pin header for this list; overrides provider |
 | `keyboardAware` | `boolean` | Add keyboard height to bottom content inset |
+| `onChipPress` | `() => void` | Additional callback fired when the chip is pressed |
 | `onRefresh` | `() => Promise<void> \| void` | Enables pull-to-refresh |
 | `pullSearchHeight` | `number` | Reserve space above content for `PullSearch` |
 | `ref` | `RefObject<RNFlatList>` | Forward ref to the underlying list |
+| `renderFilters` | `ReactNode` | Rendered below `ListHeaderComponent`, above list items |
 
 Performance props are user-overridable with sensible defaults:
 
@@ -165,17 +183,38 @@ import { CustomList } from '@rific/scroll-view'
 
 | Prop | Type | Description |
 |------|------|-------------|
+| `chipProps` | `ChipProps` | Customize the scroll-to-top chip (label, style, etc.) |
 | `component` | `ComponentType<P>` | The list component to render |
-| `renderFilters` | `ReactNode` | Rendered below `ListHeaderComponent`, above list items |
 | `footerFixed` | `boolean` | Pin footer; overrides provider |
-| `headerFixed` | `boolean` | Pin header; overrides provider |
 | `gesture` | `GestureType` | Compose with an external RNGH gesture |
+| `headerFixed` | `boolean` | Pin header; overrides provider |
 | `keyboardAware` | `boolean` | Add keyboard height to bottom content inset |
 | `onRefresh` | `() => Promise<void> \| void` | Enables pull-to-refresh |
 | `pullSearchHeight` | `number` | Reserve space above content for `PullSearch` |
+| `renderFilters` | `ReactNode` | Rendered below `ListHeaderComponent`, above list items |
 | `scrollRef` | `RefObject<{ scrollToOffset }>` | Forward ref to the underlying list |
 
 The underlying component receives `contentInset`, `contentOffset`, `onScroll`, `refreshControl`, and `scrollEventThrottle` — props it must support for the library to function.
+
+---
+
+### `ChipProps`
+
+Passed via `chipProps` on any scroll component to customise the floating scroll-to-top chip. Accepts all `Chip` props from `@rific/auto-paper` except `compact`, `icon`, and `onPress` (which are managed by the library), plus:
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `label` | `ReactNode` | Override the default label ("Top" / "Start") |
+| `style` | `ViewStyle` | Merged with the chip's default style |
+
+```tsx
+<FlatList
+  chipProps={{ label: 'Back to top', style: { opacity: 0.9 } }}
+  data={items}
+  renderItem={renderItem}
+  keyExtractor={(item) => item.id}
+/>
+```
 
 ---
 

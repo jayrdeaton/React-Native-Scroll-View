@@ -4,7 +4,7 @@ import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture
 import Animated, { createAnimatedComponent } from 'react-native-reanimated'
 
 import { RefreshControl } from './internal/RefreshControl'
-import { ScrollViewChip } from './internal/ScrollViewChip'
+import { type ChipProps, ScrollViewChip } from './internal/ScrollViewChip'
 import { useScrollHandler } from './internal/useScrollHandler'
 import { useScrollList } from './internal/useScrollList'
 import { useStickyHeaders } from './internal/useStickyHeaders'
@@ -13,11 +13,14 @@ import { useScrollInit } from './useScrollInit'
 const AnimatedSectionList = createAnimatedComponent(RNSectionList) as unknown as typeof RNSectionList
 
 export type SectionListProps<ItemT, SectionT extends { data: ReadonlyArray<ItemT> } = { data: ReadonlyArray<ItemT> }> = Omit<RNSectionListProps<ItemT, SectionT>, 'horizontal'> & {
+  chipProps?: ChipProps
+  chipThreshold?: number
   renderFilters?: ReactNode
   footerFixed?: boolean
   gesture?: GestureType
   headerFixed?: boolean
   keyboardAware?: boolean
+  onChipPress?: () => void
   onMomentumScrollEnd?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   onScrollBeginDrag?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   onScrollEndDrag?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
@@ -25,7 +28,7 @@ export type SectionListProps<ItemT, SectionT extends { data: ReadonlyArray<ItemT
   ref?: RefObject<RNSectionList<ItemT, SectionT> | null>
 }
 
-const SectionListInner = <ItemT, SectionT extends { data: ReadonlyArray<ItemT> } = { data: ReadonlyArray<ItemT> }>({ contentContainerStyle: externalContentContainerStyle, initialNumToRender = 20, maxToRenderPerBatch = 50, renderFilters, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, keyboardAware, ListHeaderComponent: externalListHeaderComponent, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onContentSizeChange, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, refreshing, removeClippedSubviews = false, sections, showsVerticalScrollIndicator, style, ref: externalRef, windowSize = 100, ...props }: SectionListProps<ItemT, SectionT>) => {
+const SectionListInner = <ItemT, SectionT extends { data: ReadonlyArray<ItemT> } = { data: ReadonlyArray<ItemT> }>({ chipProps, chipThreshold, contentContainerStyle: externalContentContainerStyle, initialNumToRender = 20, maxToRenderPerBatch = 50, renderFilters, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, keyboardAware, ListHeaderComponent: externalListHeaderComponent, onChipPress, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onContentSizeChange, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, refreshing, removeClippedSubviews = false, sections, showsVerticalScrollIndicator, style, ref: externalRef, windowSize = 100, ...props }: SectionListProps<ItemT, SectionT>) => {
   const scrollView = useRef<RNSectionList<ItemT, SectionT>>(null)
 
   const { stickySectionHeadersEnabled = true, renderSectionHeader, ...passThroughProps } = props as RNSectionListProps<ItemT, SectionT>
@@ -122,7 +125,7 @@ const SectionListInner = <ItemT, SectionT extends { data: ReadonlyArray<ItemT> }
     scrollTo(-contentInset.top + pullSearchHeight, true)
   }, [contentInset.top, pullSearchHeight, scrollTo])
 
-  const handleScroll = useScrollHandler({ chipHidden, footerFixed, headerFixed, onPullSearchZoneEnter: pullSearchHeight ? onPullSearchZoneEnter : undefined })
+  const handleScroll = useScrollHandler({ chipHidden, chipThreshold, footerFixed, headerFixed, onPullSearchZoneEnter: pullSearchHeight ? onPullSearchZoneEnter : undefined })
 
   const handleScrollToTop = useCallback(() => {
     const offset = pullSearchHeight ? -contentInset.top + pullSearchHeight : -contentInset.top
@@ -175,7 +178,7 @@ const SectionListInner = <ItemT, SectionT extends { data: ReadonlyArray<ItemT> }
           {hiddenHeader}
         </View>
       )}
-      <ScrollViewChip onPress={handleScrollToTop} style={chipStyle} />
+      <ScrollViewChip chipProps={chipProps} onChipPress={onChipPress} onPress={handleScrollToTop} style={chipStyle} />
       {usesCustomSticky && (
         <Animated.View pointerEvents='none' style={[styles.stickyClip, clipStyle]}>
           {activeIndex >= 0 && activeIndex < sections.length && <Animated.View style={[styles.stickyOverlay, overlayStyle]}>{renderSectionHeader({ section: sections[activeIndex] })}</Animated.View>}

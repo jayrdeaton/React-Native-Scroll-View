@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react'
+import { act, render } from '@testing-library/react'
 import React, { useContext } from 'react'
 
 import { ScrollViewContext } from '../ScrollViewContext'
@@ -54,7 +54,7 @@ describe('ScrollViewProvider', () => {
         <ContextReader onRead={(v) => { capturedValue = v }} />
       </ScrollViewProvider>
     )
-    capturedValue?.setProgress(0.5)
+    act(() => { capturedValue?.setProgress(0.5) })
     rerender(
       <ScrollViewProvider>
         <ContextReader onRead={(v) => { capturedValue = v }} />

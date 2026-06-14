@@ -5,13 +5,13 @@ import { defaultScrollViewSettings, type ScrollViewSettings, ScrollViewSettingsC
 export type ScrollViewSettingsProviderProps = {
   children: ReactNode
   onChange?: (settings: ScrollViewSettings) => void
-  value?: Partial<ScrollViewSettings>
+  initialValue?: Partial<ScrollViewSettings>
 }
 
-export const ScrollViewSettingsProvider = ({ children, onChange, value }: ScrollViewSettingsProviderProps) => {
+export const ScrollViewSettingsProvider = ({ children, onChange, initialValue }: ScrollViewSettingsProviderProps) => {
   const [settings, setSettings] = useState<ScrollViewSettings>(() => ({
     ...defaultScrollViewSettings,
-    ...value
+    ...initialValue
   }))
 
   const set = useCallback(

@@ -56,20 +56,22 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
   const translateStyle = useAnimatedStyle(() => {
     if (headerFixed) return { transform: [{ translateY: 0 }] }
     if (snapBackHeaderShared.value) return { transform: [{ translateY: headerOffset.value }] }
-    const effective = scrollPosition.value + headerHeight - pullSearchHeightShared.value
+    const effective = scrollPosition.value + (headerHeight ?? 0) - pullSearchHeightShared.value
     if (effective <= 0) return { transform: [{ translateY: 0 }] }
     return { transform: [{ translateY: -effective }] }
   }, [headerFixed, headerHeight])
   const blurStyle = useAnimatedStyle(() => {
     if (!headerHeight) return { height: 0 }
     if (headerFixed) return { height: headerHeight }
-    const translateY = snapBackHeaderShared.value ? headerOffset.value : -Math.max(0, scrollPosition.value + headerHeight - pullSearchHeightShared.value)
-    return { height: Math.max(headerHeight + translateY, top) }
+    const h = headerHeight ?? 0
+    const translateY = snapBackHeaderShared.value ? headerOffset.value : -Math.max(0, scrollPosition.value + h - pullSearchHeightShared.value)
+    return { height: Math.max(h + translateY, top) }
   }, [headerFixed, headerHeight, top])
   const progressStyle = useAnimatedStyle(() => {
-    if (headerFixed) return { top: headerHeight }
-    const slide = snapBackHeaderShared.value ? -headerOffset.value : Math.max(0, scrollPosition.value + headerHeight - pullSearchHeightShared.value)
-    return { top: Math.max(headerHeight - slide, top) }
+    const h = headerHeight ?? 0
+    if (headerFixed) return { top: h }
+    const slide = snapBackHeaderShared.value ? -headerOffset.value : Math.max(0, scrollPosition.value + h - pullSearchHeightShared.value)
+    return { top: Math.max(h - slide, top) }
   }, [headerFixed, headerHeight, top])
   const actionMargin = 4
   const contentMinHeight = actionSize + 2 * actionMargin
@@ -81,33 +83,34 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
   return (
     <>
       <Animated.View pointerEvents='none' style={[styles.blur, blurStyle]}>
-        {headerHeight > 0 && <BlurView blur={blur} style={[styles.blurInner, { height: headerHeight }]} />}
+        {headerHeight !== null && headerHeight > 0 && <BlurView blur={blur} style={[styles.blurInner, { height: headerHeight }]} />}
       </Animated.View>
-      <Animated.View onLayout={handleLayout} pointerEvents='box-none' style={[headerHeight === 0 ? styles.headerInit : styles.header, translateStyle]}>
+      <Animated.View onLayout={handleLayout} pointerEvents='box-none' style={[headerHeight === null ? styles.headerInit : styles.header, translateStyle]}>
         <View style={[{ paddingTop: top }, style]}>
-          <View style={[styles.content, { minHeight: contentMinHeight }]}>
-            <View style={styles.side} />
-            <View style={styles.spacer} />
-            <View style={styles.side}>{children}</View>
-            {(centerContent || title || caption) && (
-              <View style={[StyleSheet.absoluteFill, styles.titleContainer]} pointerEvents={centerContent ? 'box-none' : 'none'}>
-                {centerContent ?? (
-                  <>
-                    {title && (
-                      <Text numberOfLines={1} style={[styles.title, { color: theme.colors.onSurface }]}>
-                        {title}
-                      </Text>
-                    )}
-                    {caption && (
-                      <Text numberOfLines={1} style={[styles.caption, { color: theme.colors.onSurfaceVariant }]}>
-                        {caption}
-                      </Text>
-                    )}
-                  </>
-                )}
-              </View>
-            )}
-          </View>
+          {children ?? (
+            <View style={[styles.content, { minHeight: contentMinHeight }]}>
+              <View style={styles.side} />
+              <View style={styles.spacer} />
+              {(centerContent || title || caption) && (
+                <View style={[StyleSheet.absoluteFill, styles.titleContainer]} pointerEvents={centerContent ? 'box-none' : 'none'}>
+                  {centerContent ?? (
+                    <>
+                      {title && (
+                        <Text numberOfLines={1} style={[styles.title, { color: theme.colors.onSurface }]}>
+                          {title}
+                        </Text>
+                      )}
+                      {caption && (
+                        <Text numberOfLines={1} style={[styles.caption, { color: theme.colors.onSurfaceVariant }]}>
+                          {caption}
+                        </Text>
+                      )}
+                    </>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
         </View>
         {!blur && <View style={[styles.divider, { backgroundColor: theme.colors.outlineVariant }]} />}
       </Animated.View>

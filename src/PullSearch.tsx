@@ -42,7 +42,7 @@ export const PullSearch = forwardRef<PullSearchHandle, PullSearchProps>(function
   useAnimatedReaction(
     () => {
       if (barHeight === 0) return false
-      return scrollPosition.value >= -headerHeight + barHeight
+      return scrollPosition.value >= -(headerHeight ?? 0) + barHeight
     },
     (isHidden, wasHidden) => {
       if (isHidden && !wasHidden) runOnJS(blurInput)()
@@ -81,8 +81,9 @@ export const PullSearch = forwardRef<PullSearchHandle, PullSearchProps>(function
   // hideY = -headerHeight + barHeight: bar scrolled behind header, opacity 0.
   const animatedStyle = useAnimatedStyle(() => {
     if (barHeight === 0) return { opacity: 0 }
-    const showY = -headerHeight
-    const hideY = -headerHeight + barHeight
+    const h = headerHeight ?? 0
+    const showY = -h
+    const hideY = -h + barHeight
     return { opacity: interpolate(scrollPosition.value, [showY, hideY], [1, 0], Extrapolation.CLAMP) }
   }, [barHeight, headerHeight])
 

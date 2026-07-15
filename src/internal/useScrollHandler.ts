@@ -3,27 +3,41 @@ import type { SharedValue } from 'react-native-reanimated'
 import { runOnJS, useAnimatedScrollHandler, useSharedValue, withTiming } from 'react-native-reanimated'
 
 import { ScrollViewContext } from '../ScrollViewContext'
+import { REMOUNT_SYNC_TOLERANCE } from '../useScrollInit'
 
 type UseScrollHandlerOptions = {
+  capturedGeneration: SharedValue<number>
   chipHidden: SharedValue<number>
   chipThreshold?: number
   footerFixed: boolean
   headerFixed: boolean
   isHorizontal?: boolean
-  onPullSearchZoneEnter?: () => void
+  listGeneration: SharedValue<number>
+  onRemountSyncRetry?: (currentY: number) => void
+  onRemountSynced?: (y: number) => void
+  remountSyncTarget?: SharedValue<number | null>
 }
 
-export function useScrollHandler({ chipHidden, chipThreshold = 100, footerFixed, headerFixed, isHorizontal, onPullSearchZoneEnter }: UseScrollHandlerOptions) {
+export function useScrollHandler({ capturedGeneration, chipHidden, chipThreshold = 100, footerFixed, headerFixed, isHorizontal, listGeneration, onRemountSyncRetry, onRemountSynced, remountSyncTarget }: UseScrollHandlerOptions) {
   const { footerHeightShared, footerOffset, headerHeightShared, headerOffset, pullSearchHeightShared, scrollPosition, snapBackFooterShared, snapBackHeaderShared } = useContext(ScrollViewContext)
   const snapUpAccum = useSharedValue(0)
   const fromBottomBounce = useSharedValue(false)
-  const isMomentum = useSharedValue(false)
-  const momentumPullSearchFired = useSharedValue(false)
 
   return useAnimatedScrollHandler(
     {
       onScroll: ({ contentOffset: { x, y }, contentSize: { height: contentHeight }, layoutMeasurement: { height: layoutHeight } }) => {
         'worklet'
+        if (remountSyncTarget && remountSyncTarget.value !== null) {
+          const target = remountSyncTarget.value
+          if (Math.abs(y - target) < REMOUNT_SYNC_TOLERANCE) {
+            remountSyncTarget.value = null
+            if (onRemountSynced) runOnJS(onRemountSynced)(y)
+          } else if (onRemountSyncRetry) {
+            runOnJS(onRemountSyncRetry)(y)
+          }
+          return
+        }
+        if (listGeneration.value !== capturedGeneration.value) return
         if (isHorizontal) {
           scrollPosition.value = x
           chipHidden.value = x < chipThreshold ? 1 : 0
@@ -38,13 +52,6 @@ export function useScrollHandler({ chipHidden, chipThreshold = 100, footerFixed,
           snapUpAccum.value = 0
         } else if (fromBottomBounce.value) {
           fromBottomBounce.value = false
-        }
-        if (isMomentum.value && pullSearchHeightShared.value > 0 && !momentumPullSearchFired.value) {
-          const hideY = -headerHeightShared.value + pullSearchHeightShared.value
-          if (y < hideY) {
-            momentumPullSearchFired.value = true
-            if (onPullSearchZoneEnter) runOnJS(onPullSearchZoneEnter)()
-          }
         }
         const snapHeader = snapBackHeaderShared.value && !headerFixed
         const snapFooter = snapBackFooterShared.value && !footerFixed
@@ -71,15 +78,8 @@ export function useScrollHandler({ chipHidden, chipThreshold = 100, footerFixed,
       },
       onBeginDrag: () => {
         'worklet'
-        isMomentum.value = false
-        momentumPullSearchFired.value = false
         fromBottomBounce.value = false
         snapUpAccum.value = 0
-      },
-      onMomentumBegin: () => {
-        'worklet'
-        isMomentum.value = true
-        momentumPullSearchFired.value = false
       },
       onEndDrag: ({ contentOffset: { y }, contentSize: { height: contentHeight }, layoutMeasurement: { height: layoutHeight } }) => {
         'worklet'
@@ -91,12 +91,10 @@ export function useScrollHandler({ chipHidden, chipThreshold = 100, footerFixed,
       },
       onMomentumEnd: () => {
         'worklet'
-        isMomentum.value = false
-        momentumPullSearchFired.value = false
         fromBottomBounce.value = false
         snapUpAccum.value = 0
       }
     },
-    [headerFixed, footerFixed, isHorizontal, chipThreshold, onPullSearchZoneEnter]
+    [capturedGeneration, headerFixed, footerFixed, isHorizontal, chipThreshold, listGeneration, onRemountSyncRetry, onRemountSynced, remountSyncTarget]
   )
 }

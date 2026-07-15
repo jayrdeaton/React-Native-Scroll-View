@@ -1,5 +1,5 @@
 import { useBlur } from '@rific/auto-paper'
-import { type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Dimensions } from 'react-native'
 import { useSharedValue } from 'react-native-reanimated'
 
@@ -24,11 +24,13 @@ export const ScrollViewProvider = ({ blur, children, fixed = false, footerFixed,
   const effectiveSnapBack = snapBack ?? settings.snapBack
   const effectiveSnapBackHeader = snapBackHeader ?? settings.snapBackHeader
   const effectiveSnapBackFooter = snapBackFooter ?? settings.snapBackFooter
-  const [headerHeight, setHeaderHeightState] = useState(0)
+  const [headerHeight, setHeaderHeightState] = useState<number | null>(null)
   const [footerHeight, setFooterHeightState] = useState(0)
   const [progress, setProgress] = useState<number | null>(null)
   const [progressing, setProgressing] = useState(false)
   const scrollPosition = useSharedValue(0)
+  const listGeneration = useSharedValue(0)
+  const jsListGeneration = useRef(0)
   const headerHeightShared = useSharedValue(0)
   const footerHeightShared = useSharedValue(0)
   const headerOffset = useSharedValue(0)
@@ -41,12 +43,26 @@ export const ScrollViewProvider = ({ blur, children, fixed = false, footerFixed,
     snapBackFooterShared.value = effectiveSnapBackFooter ?? effectiveSnapBack
   }, [effectiveSnapBack, effectiveSnapBackFooter, effectiveSnapBackHeader, snapBackFooterShared, snapBackHeaderShared])
   const setHeaderHeight = useCallback(
-    (h: number) => {
+    (h: number | null) => {
       setHeaderHeightState(h)
-      headerHeightShared.value = h
+      headerHeightShared.value = h ?? 0
     },
     [headerHeightShared]
   )
+  const onListUnmount = useCallback(() => {
+    listGeneration.value += 1
+  }, [listGeneration])
+  const onJsListUnmount = useCallback(() => {
+    jsListGeneration.current += 1
+  }, [])
+  useEffect(() => {
+    if (!__DEV__ || headerHeight !== null) return
+    const timeout = setTimeout(() => {
+      // eslint-disable-next-line no-console
+      console.warn('[scroll-view] No ScrollViewHeader ever measured inside this ScrollViewProvider — scroll content stays hidden (opacity: 0) until one does. Render a <ScrollViewHeader> (it can be empty / zero height) inside this provider.')
+    }, 3000)
+    return () => clearTimeout(timeout)
+  }, [headerHeight])
   const setFooterHeight = useCallback(
     (h: number) => {
       setFooterHeightState(h)
@@ -54,9 +70,9 @@ export const ScrollViewProvider = ({ blur, children, fixed = false, footerFixed,
     },
     [footerHeightShared]
   )
-  const scrollHeight = useMemo(() => Dimensions.get('window').height - headerHeight - footerHeight, [headerHeight, footerHeight])
+  const scrollHeight = useMemo(() => Dimensions.get('window').height - (headerHeight ?? 0) - footerHeight, [headerHeight, footerHeight])
   const effectiveHeaderFixed = fixed || (headerFixed ?? settings.headerFixed)
   const effectiveFooterFixed = fixed || (footerFixed ?? settings.footerFixed)
-  const value = useMemo(() => ({ blur: effectiveBlur, footerHeight, footerHeightShared, footerFixed: effectiveFooterFixed, footerOffset, headerHeight, headerHeightShared, headerFixed: effectiveHeaderFixed, headerOffset, progress, pullSearchHeightShared, progressing, scrollHeight, scrollPosition, setFooterHeight, setHeaderHeight, setProgress, setProgressing, snapBackFooterShared, snapBackHeaderShared, tabBarHeight }), [effectiveBlur, effectiveFooterFixed, effectiveHeaderFixed, footerHeight, footerHeightShared, footerOffset, headerHeight, headerHeightShared, headerOffset, progress, pullSearchHeightShared, progressing, scrollHeight, scrollPosition, setFooterHeight, setHeaderHeight, snapBackFooterShared, snapBackHeaderShared, tabBarHeight])
+  const value = useMemo(() => ({ blur: effectiveBlur, footerHeight, footerHeightShared, footerFixed: effectiveFooterFixed, footerOffset, headerHeight, headerHeightShared, headerFixed: effectiveHeaderFixed, headerOffset, jsListGeneration, listGeneration, onJsListUnmount, onListUnmount, progress, pullSearchHeightShared, progressing, scrollHeight, scrollPosition, setFooterHeight, setHeaderHeight, setProgress, setProgressing, snapBackFooterShared, snapBackHeaderShared, tabBarHeight }), [effectiveBlur, effectiveFooterFixed, effectiveHeaderFixed, footerHeight, footerHeightShared, footerOffset, headerHeight, headerHeightShared, headerOffset, jsListGeneration, listGeneration, onJsListUnmount, onListUnmount, progress, pullSearchHeightShared, progressing, scrollHeight, scrollPosition, setFooterHeight, setHeaderHeight, snapBackFooterShared, snapBackHeaderShared, tabBarHeight])
   return <ScrollViewContext.Provider value={value}>{children}</ScrollViewContext.Provider>
 }

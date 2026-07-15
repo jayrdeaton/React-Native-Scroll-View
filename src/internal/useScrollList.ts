@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import { type StyleProp, StyleSheet, type ViewStyle } from 'react-native'
 import { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -29,15 +29,19 @@ export function useScrollList({ footerFixed: footerFixedProp, headerFixed: heade
     pullSearchHeightShared.value = pullSearchHeight ?? 0
   }, [pullSearchHeight, pullSearchHeightShared])
 
-  // First render (headerHeight===0): flex:1 so the list sits naturally below the in-flow header.
-  // After header measures: absoluteFill with contentOffset to match the same visual position.
-  const containerStyle = useMemo(() => (headerHeight === 0 ? [{ flex: 1 }, style] : [StyleSheet.absoluteFill, style]), [headerHeight, style])
+  // First render (headerHeight===0): flex:1, hidden until header measures so the key=0→1
+  // transition (and contentOffset change) never appears as a visible jump.
+  // After header measures: absoluteFill with correct contentOffset — then reveal.
+  const containerStyle = useMemo(() => (headerHeight === null ? [{ flex: 1, opacity: 0 }, style] : [StyleSheet.absoluteFill, style]), [headerHeight, style])
 
-  const contentInset = useMemo(() => ({ bottom: (footerFixed ? footerHeight || insets.bottom : insets.bottom) + (keyboardAware ? keyboardHeight : 0), top: headerHeight }), [footerFixed, footerHeight, insets.bottom, headerHeight, keyboardAware, keyboardHeight])
+  const contentInset = useMemo(() => ({ bottom: (footerFixed ? footerHeight || insets.bottom : insets.bottom) + (keyboardAware ? keyboardHeight : 0), top: headerHeight ?? 0 }), [footerFixed, footerHeight, insets.bottom, headerHeight, keyboardAware, keyboardHeight])
 
-  // Synchronously positions the scroll view to match the in-flow layout from the first render.
-  // Fabric applies this atomically with the containerStyle switch, so there is no visible jump.
-  const contentOffset = useMemo(() => ({ x: 0, y: -contentInset.top }), [contentInset.top])
+  // Use hideY offset only when this component mounted with headerHeight already known (mode switch).
+  // On initial load, headerHeight is null at mount so we start at showY and let useScrollInit
+  // call scrollTo after the phase transition. On mode switch, headerHeight is already set so we
+  // can position the FlatList at hideY atomically via contentOffset — no scrollTo needed.
+  const [startedWithHeader] = useState(headerHeight !== null)
+  const contentOffset = useMemo(() => ({ x: 0, y: headerHeight !== null ? -headerHeight + (startedWithHeader && !isHorizontal && pullSearchHeight ? pullSearchHeight : 0) : 0 }), [headerHeight, isHorizontal, pullSearchHeight, startedWithHeader])
 
   const chipHidden = useSharedValue(1)
   const chipStyle = useAnimatedStyle(() => {
@@ -46,12 +50,13 @@ export function useScrollList({ footerFixed: footerFixedProp, headerFixed: heade
       return {
         opacity: chipHidden.value ? withTiming(0) : withTiming(1),
         pointerEvents,
-        top: Math.max(headerHeight, insets.top) + 4,
+        top: Math.max(headerHeight ?? 0, insets.top) + 4,
         transform: [{ translateX: chipHidden.value ? withTiming(-CHIP_SLIDE) : withTiming(0) }]
       }
     }
-    const slide = headerFixed ? 0 : snapBackHeaderShared.value ? -headerOffset.value : Math.max(0, scrollPosition.value + headerHeight - pullSearchHeightShared.value)
-    const top = Math.max(headerHeight - slide, insets.top) + 4
+    const h = headerHeight ?? 0
+    const slide = headerFixed ? 0 : snapBackHeaderShared.value ? -headerOffset.value : Math.max(0, scrollPosition.value + h - pullSearchHeightShared.value)
+    const top = Math.max(h - slide, insets.top) + 4
     return {
       opacity: chipHidden.value ? withTiming(0) : withTiming(1),
       pointerEvents,

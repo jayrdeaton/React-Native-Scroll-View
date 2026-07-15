@@ -1,11 +1,13 @@
-import { type ComponentType, memo, type ReactElement, type ReactNode, type RefObject, useCallback, useMemo, useRef } from 'react'
+import { type ComponentType, memo, type ReactElement, type ReactNode, type RefObject, useCallback, useContext, useLayoutEffect, useMemo, useRef } from 'react'
 import { Dimensions, type NativeScrollEvent, type NativeSyntheticEvent, type StyleProp, View, type ViewStyle } from 'react-native'
 import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture-handler'
+import { runOnUI, useSharedValue } from 'react-native-reanimated'
 
 import { RefreshControl } from './internal/RefreshControl'
 import { type ChipProps, ScrollViewChip } from './internal/ScrollViewChip'
 import { useScrollHandler } from './internal/useScrollHandler'
 import { useScrollList } from './internal/useScrollList'
+import { ScrollViewContext } from './ScrollViewContext'
 import { useScrollInit } from './useScrollInit'
 
 type ScrollToOffsetRef = { scrollToOffset: (params: { animated?: boolean; offset: number }) => void }
@@ -34,6 +36,30 @@ const CustomListInner = <P extends object>({ chipProps, chipThreshold, component
   const { ListHeaderComponent: listHeaderComponent, contentContainerStyle: externalContentContainerStyle, ...restProps } = props as Record<string, unknown>
 
   const { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, keyboardAware, pullSearchHeight, style })
+  const { listGeneration, onListUnmount } = useContext(ScrollViewContext)
+  // -1 never matches a real generation (starts at 0, only increments) — the runOnUI call below
+  // corrects it before any scroll event could observe the placeholder.
+  const capturedGeneration = useSharedValue(-1)
+  // Layout effects (not passive effects): React guarantees all layout-effect cleanups for fibers
+  // removed in a commit run before any layout-effect setups for fibers added in that same commit,
+  // but gives no such ordering guarantee for passive effects. On a key-forced remount, the outgoing
+  // instance's unmount and the incoming instance's mount land in the same commit — with passive
+  // effects, the incoming instance's sync could run before the outgoing instance's bump, permanently
+  // capturing a stale generation and silently disabling this instance's onScroll handling forever.
+  // Correct ordering alone isn't sufficient, though: the onScroll worklet reads capturedGeneration
+  // on the UI thread, and a plain JS-thread write to a SharedValue is not guaranteed to be visible
+  // there before a scroll event the UI thread schedules shortly after (e.g. useScrollInit's mount-time
+  // imperative scrollTo calls). Routing the write itself through runOnUI puts it on the UI thread's
+  // own serial queue, so it's guaranteed to run before any onScroll worklet invocation that could
+  // only be queued after this component finishes mounting.
+  useLayoutEffect(() => {
+    const generation = listGeneration.value
+    runOnUI((gen: number) => {
+      'worklet'
+      capturedGeneration.value = gen
+    })(generation)
+  }, [capturedGeneration, listGeneration])
+  useLayoutEffect(() => () => onListUnmount(), [onListUnmount])
 
   const scrollViewInternal = useRef<ScrollToOffsetRef | null>(null)
 
@@ -55,7 +81,10 @@ const CustomListInner = <P extends object>({ chipProps, chipThreshold, component
     handleScrollBeginDrag,
     handleScrollEndDrag,
     hiddenHeader,
-    pullSearchMinHeight
+    onRemountSyncRetry,
+    onRemountSynced,
+    pullSearchMinHeight,
+    remountSyncTarget
   } = useScrollInit({
     listHeaderComponent: listHeaderComponent as ComponentType<object> | ReactElement | null | undefined,
     onMomentumScrollEnd: externalMomentumScrollEnd,
@@ -79,12 +108,7 @@ const CustomListInner = <P extends object>({ chipProps, chipThreshold, component
 
   const contentContainerStyle = useMemo(() => [{ minHeight: Dimensions.get('window').height - contentInset.top - contentInset.bottom + pullSearchMinHeight }, externalContentContainerStyle], [contentInset.bottom, contentInset.top, externalContentContainerStyle, pullSearchMinHeight])
 
-  const onPullSearchZoneEnter = useCallback(() => {
-    if (!pullSearchHeight) return
-    scrollViewInternal.current?.scrollToOffset({ offset: -contentInset.top + pullSearchHeight, animated: true })
-  }, [contentInset.top, pullSearchHeight])
-
-  const onScroll = useScrollHandler({ chipHidden, chipThreshold, footerFixed, headerFixed, onPullSearchZoneEnter: pullSearchHeight ? onPullSearchZoneEnter : undefined })
+  const onScroll = useScrollHandler({ capturedGeneration, chipHidden, chipThreshold, footerFixed, headerFixed, listGeneration, onRemountSyncRetry, onRemountSynced, remountSyncTarget })
 
   const handleScrollToTop = useCallback(() => {
     const offset = pullSearchHeight ? -contentInset.top + pullSearchHeight : -contentInset.top

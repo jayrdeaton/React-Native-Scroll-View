@@ -1,16 +1,17 @@
-import { memo, type ReactNode, type RefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { memo, type ReactNode, type RefObject, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { Dimensions, type NativeScrollEvent, type NativeSyntheticEvent, SectionList as RNSectionList, type SectionListProps as RNSectionListProps, View } from 'react-native'
 import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture-handler'
-import Animated, { createAnimatedComponent } from 'react-native-reanimated'
+import Animated, { runOnUI, useSharedValue } from 'react-native-reanimated'
 
 import { RefreshControl } from './internal/RefreshControl'
 import { type ChipProps, ScrollViewChip } from './internal/ScrollViewChip'
 import { useScrollHandler } from './internal/useScrollHandler'
 import { useScrollList } from './internal/useScrollList'
 import { useStickyHeaders } from './internal/useStickyHeaders'
+import { ScrollViewContext } from './ScrollViewContext'
 import { useScrollInit } from './useScrollInit'
 
-const AnimatedSectionList = createAnimatedComponent(RNSectionList) as unknown as typeof RNSectionList
+const AnimatedSectionList = Animated.createAnimatedComponent(RNSectionList) as unknown as typeof RNSectionList
 
 export type SectionListProps<ItemT, SectionT extends { data: ReadonlyArray<ItemT> } = { data: ReadonlyArray<ItemT> }> = Omit<RNSectionListProps<ItemT, SectionT>, 'horizontal'> & {
   chipProps?: ChipProps
@@ -34,6 +35,29 @@ const SectionListInner = <ItemT, SectionT extends { data: ReadonlyArray<ItemT> }
   const { stickySectionHeadersEnabled = true, renderSectionHeader, ...passThroughProps } = props as RNSectionListProps<ItemT, SectionT>
 
   const { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed, headerHeight } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, keyboardAware, pullSearchHeight, style })
+  const { listGeneration, onListUnmount } = useContext(ScrollViewContext)
+  // -1 never matches a real generation (starts at 0, only increments) — the runOnUI call below
+  // corrects it before any scroll event could observe the placeholder.
+  const capturedGeneration = useSharedValue(-1)
+  // Layout effect (not passive effect): React guarantees all layout-effect cleanups for fibers
+  // removed in a commit run before any layout-effect setups for fibers added in that same commit,
+  // but gives no such ordering guarantee for passive effects. On a key-forced remount, the outgoing
+  // instance's unmount and the incoming instance's mount land in the same commit — with passive
+  // effects, the incoming instance's sync could run before the outgoing instance's bump, permanently
+  // capturing a stale generation and silently disabling this instance's onScroll handling forever.
+  // Correct ordering alone isn't sufficient, though: the onScroll worklet reads capturedGeneration
+  // on the UI thread, and a plain JS-thread write to a SharedValue is not guaranteed to be visible
+  // there before a scroll event the UI thread schedules shortly after (e.g. useScrollInit's mount-time
+  // imperative scrollTo calls). Routing the write itself through runOnUI puts it on the UI thread's
+  // own serial queue, so it's guaranteed to run before any onScroll worklet invocation that could
+  // only be queued after this component finishes mounting.
+  useLayoutEffect(() => {
+    const generation = listGeneration.value
+    runOnUI((gen: number) => {
+      'worklet'
+      capturedGeneration.value = gen
+    })(generation)
+  }, [capturedGeneration, listGeneration])
 
   const usesCustomSticky = stickySectionHeadersEnabled && renderSectionHeader != null
   const { activeIndex, clipStyle, measureHeader, overlayStyle, resetPositions } = useStickyHeaders(headerFixed, usesCustomSticky)
@@ -69,6 +93,8 @@ const SectionListInner = <ItemT, SectionT extends { data: ReadonlyArray<ItemT> }
       )
     }
   }, [usesCustomSticky, renderSectionHeader, sections, measureHeader])
+
+  useLayoutEffect(() => () => onListUnmount(), [onListUnmount])
 
   const scrollTo = useCallback((offset: number, animated: boolean) => {
     scrollView.current?.getScrollResponder()?.scrollTo({ y: offset, animated })
@@ -120,12 +146,7 @@ const SectionListInner = <ItemT, SectionT extends { data: ReadonlyArray<ItemT> }
 
   const contentContainerStyle = useMemo(() => [{ minHeight: Dimensions.get('window').height - contentInset.top - contentInset.bottom + pullSearchMinHeight }, externalContentContainerStyle], [contentInset.bottom, contentInset.top, externalContentContainerStyle, pullSearchMinHeight])
 
-  const onPullSearchZoneEnter = useCallback(() => {
-    if (!pullSearchHeight) return
-    scrollTo(-contentInset.top + pullSearchHeight, true)
-  }, [contentInset.top, pullSearchHeight, scrollTo])
-
-  const handleScroll = useScrollHandler({ chipHidden, chipThreshold, footerFixed, headerFixed, onPullSearchZoneEnter: pullSearchHeight ? onPullSearchZoneEnter : undefined })
+  const handleScroll = useScrollHandler({ capturedGeneration, chipHidden, chipThreshold, footerFixed, headerFixed, listGeneration })
 
   const handleScrollToTop = useCallback(() => {
     const offset = pullSearchHeight ? -contentInset.top + pullSearchHeight : -contentInset.top
@@ -147,7 +168,7 @@ const SectionListInner = <ItemT, SectionT extends { data: ReadonlyArray<ItemT> }
   const content = (
     <View style={containerStyle}>
       <AnimatedSectionList
-        key={headerHeight > 0 ? 1 : 0}
+        key={headerHeight !== null && headerHeight > 0 ? 1 : 0}
         {...passThroughProps}
         contentContainerStyle={contentContainerStyle}
         contentInset={contentInset}

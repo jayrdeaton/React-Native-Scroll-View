@@ -14,6 +14,8 @@ npm install @rific/scroll-view
 npm install @rific/auto-paper react-native-reanimated react-native-gesture-handler react-native-safe-area-context react-native-paper react-native-keyboard-controller
 ```
 
+The exported Redux slice has no dependency on `@reduxjs/toolkit` — it works with RTK stores, vanilla Redux, or no Redux at all.
+
 ## Quick start
 
 Wrap your screen in `ScrollViewProvider`, add a `ScrollViewHeader`, then drop in one of the scroll components.

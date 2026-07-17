@@ -27,7 +27,7 @@
   "type": "commonjs",
   "exports": {
     ".": {
-      "react-native": "./src/index.ts",
+      "react-native": "./dist/index.js",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"

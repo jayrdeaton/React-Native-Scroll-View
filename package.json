@@ -1,6 +1,6 @@
 {
   "name": "@rific/scroll-view",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Blur styled scroll system for React Native. Floating headers/footers, keyboard awareness, and scroll-away chrome",
   "keywords": [
     "react-native",

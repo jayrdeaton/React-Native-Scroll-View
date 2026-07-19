@@ -78,7 +78,7 @@ const FlatListInner = <T,>({ chipProps, chipThreshold, columnWrapperStyle, conte
     [cols, columnWrapperStyle, renderItem]
   )
 
-  const { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, isHorizontal, keyboardAware, pullSearchHeight, style })
+  const { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, contentPadding, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, isHorizontal, keyboardAware, pullSearchHeight, style })
   const { jsListGeneration, onJsListUnmount } = useContext(ScrollViewContext)
   // Plain ref, not a SharedValue: see the comment on ScrollViewContextType.jsListGeneration for why.
   const capturedGeneration = useRef(jsListGeneration.current)
@@ -120,7 +120,7 @@ const FlatListInner = <T,>({ chipProps, chipThreshold, columnWrapperStyle, conte
     )
   }, [pullSearchHeader, renderFilters])
 
-  const contentContainerStyle = useMemo(() => (isHorizontal ? externalContentContainerStyle : [{ minHeight: Dimensions.get('window').height - contentInset.top - contentInset.bottom + pullSearchMinHeight }, externalContentContainerStyle]), [isHorizontal, contentInset.bottom, contentInset.top, externalContentContainerStyle, pullSearchMinHeight])
+  const contentContainerStyle = useMemo(() => (isHorizontal ? externalContentContainerStyle : [{ minHeight: Dimensions.get('window').height - contentInset.top - contentInset.bottom + pullSearchMinHeight }, externalContentContainerStyle, contentPadding]), [isHorizontal, contentInset.bottom, contentInset.top, contentPadding, externalContentContainerStyle, pullSearchMinHeight])
 
   const scrollHandler = useScrollHandlerJS({ capturedGeneration, chipHidden, chipThreshold, footerFixed, headerFixed, isHorizontal, jsListGeneration, remountTarget, scrollTo })
 

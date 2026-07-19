@@ -4,6 +4,7 @@ import { runOnJS, useAnimatedScrollHandler, useSharedValue, withTiming } from 'r
 
 import { ScrollViewContext } from '../ScrollViewContext'
 import { REMOUNT_SYNC_TOLERANCE } from '../useScrollInit'
+import { usesContentInset } from './insetMode'
 
 type UseScrollHandlerOptions = {
   capturedGeneration: SharedValue<number>
@@ -43,9 +44,12 @@ export function useScrollHandler({ capturedGeneration, chipHidden, chipThreshold
           chipHidden.value = x < chipThreshold ? 1 : 0
           return
         }
-        const delta = y - scrollPosition.value
-        scrollPosition.value = y
-        chipHidden.value = y < chipThreshold ? 1 : 0
+        // Normalize into inset space (rest = -headerHeight) on platforms that emulate the bars
+        // with content padding; bounce detection below stays in the raw space contentSize lives in.
+        const yn = usesContentInset ? y : y - headerHeightShared.value
+        const delta = yn - scrollPosition.value
+        scrollPosition.value = yn
+        chipHidden.value = yn < chipThreshold ? 1 : 0
         const maxScroll = contentHeight - layoutHeight
         if (maxScroll > 0 && y >= maxScroll) {
           fromBottomBounce.value = true
@@ -56,18 +60,18 @@ export function useScrollHandler({ capturedGeneration, chipHidden, chipThreshold
         const snapHeader = snapBackHeaderShared.value && !headerFixed
         const snapFooter = snapBackFooterShared.value && !footerFixed
         if (snapHeader || snapFooter) {
-          if (y <= -headerHeightShared.value) {
+          if (yn <= -headerHeightShared.value) {
             snapUpAccum.value = 0
             if (snapHeader) headerOffset.value = 0
             if (snapFooter) footerOffset.value = 0
           } else if (delta > 0) {
             snapUpAccum.value = 0
-            if (y >= -headerHeightShared.value + pullSearchHeightShared.value) {
+            if (yn >= -headerHeightShared.value + pullSearchHeightShared.value) {
               if (snapHeader) headerOffset.value = Math.max(-headerHeightShared.value, Math.min(0, headerOffset.value - delta))
               if (snapFooter) footerOffset.value = Math.max(0, Math.min(footerHeightShared.value, footerOffset.value + delta))
             }
           } else if (delta < 0 && !fromBottomBounce.value) {
-            if (y >= -headerHeightShared.value + pullSearchHeightShared.value) snapUpAccum.value -= delta
+            if (yn >= -headerHeightShared.value + pullSearchHeightShared.value) snapUpAccum.value -= delta
             if (snapUpAccum.value >= 10) {
               snapUpAccum.value = 999
               if (snapHeader) headerOffset.value = withTiming(0, { duration: 200 })

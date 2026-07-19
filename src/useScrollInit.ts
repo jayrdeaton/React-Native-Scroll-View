@@ -2,6 +2,7 @@ import { type ComponentType, createElement, type ReactElement, useCallback, useC
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
 import { type SharedValue, useSharedValue } from 'react-native-reanimated'
 
+import { usesContentInset } from './internal/insetMode'
 import { ScrollViewContext } from './ScrollViewContext'
 
 const REMOUNT_SYNC_MAX_ATTEMPTS = 8
@@ -41,8 +42,10 @@ export type UseScrollInitResult = {
   scrollReady: boolean
 }
 
-export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, scrollTo }: UseScrollInitOptions): UseScrollInitResult {
+export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight: pullSearchHeightProp, scrollTo }: UseScrollInitOptions): UseScrollInitResult {
   const { headerHeight, scrollPosition, setProgressing } = useContext(ScrollViewContext)
+  // Pull-search rides iOS overscroll physics; outside inset mode it never engages.
+  const pullSearchHeight = usesContentInset ? pullSearchHeightProp : undefined
   const hasPullSearch = pullSearchHeight !== undefined
   // Start 'ready' immediately if headerHeight is already known (e.g. FlatList remount on mode
   // switch). Only enter 'measuring' on the very first mount when headerHeight hasn't been set yet.
@@ -115,7 +118,9 @@ export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: extern
   // for the first render), so the list stays hidden until a confirmed onScroll event reports the
   // intended resting position, re-issuing the imperative scrollTo in between as needed. This
   // replaces trying to guess how many spurious events to skip.
-  const [remountTarget] = useState<number | null>(() => (headerHeight !== null ? -headerHeight + (pullSearchHeight ?? 0) : null))
+  // Remount sync exists for Fabric/iOS contentOffset unreliability; padding platforms mount at a
+  // plain 0 offset and need none of it.
+  const [remountTarget] = useState<number | null>(() => (usesContentInset && headerHeight !== null ? -headerHeight + (pullSearchHeight ?? 0) : null))
   const remountSyncTarget = useSharedValue<number | null>(remountTarget)
   const [scrollReady, setScrollReady] = useState(remountTarget === null)
   const remountAttempts = useRef(0)
@@ -195,7 +200,8 @@ export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: extern
     headerInitialized.current = true
     const target = remountTarget ?? -headerHeight
     scrollPosition.value = target
-    scrollTo(target, false)
+    // Imperative scroll targets are raw-space: inset mode rests at -headerHeight, padding mode at 0.
+    scrollTo(usesContentInset ? target : 0, false)
     if (remountTarget === null) return
     let framesLeft = REMOUNT_PRIME_FRAMES
     let handle: number | null = null

@@ -34,7 +34,7 @@ const SectionListInner = <ItemT, SectionT extends { data: ReadonlyArray<ItemT> }
 
   const { stickySectionHeadersEnabled = true, renderSectionHeader, ...passThroughProps } = props as RNSectionListProps<ItemT, SectionT>
 
-  const { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed, headerHeight } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, keyboardAware, pullSearchHeight, style })
+  const { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, contentPadding, footerFixed, headerFixed, headerHeight } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, keyboardAware, pullSearchHeight, style })
   const { listGeneration, onListUnmount } = useContext(ScrollViewContext)
   // -1 never matches a real generation (starts at 0, only increments) — the runOnUI call below
   // corrects it before any scroll event could observe the placeholder.
@@ -144,7 +144,7 @@ const SectionListInner = <ItemT, SectionT extends { data: ReadonlyArray<ItemT> }
     return () => cancelAnimationFrame(handle)
   }, [activeListHeader, usesCustomSticky, measureHeader])
 
-  const contentContainerStyle = useMemo(() => [{ minHeight: Dimensions.get('window').height - contentInset.top - contentInset.bottom + pullSearchMinHeight }, externalContentContainerStyle], [contentInset.bottom, contentInset.top, externalContentContainerStyle, pullSearchMinHeight])
+  const contentContainerStyle = useMemo(() => [{ minHeight: Dimensions.get('window').height - contentInset.top - contentInset.bottom + pullSearchMinHeight }, externalContentContainerStyle, contentPadding], [contentInset.bottom, contentInset.top, contentPadding, externalContentContainerStyle, pullSearchMinHeight])
 
   const handleScroll = useScrollHandler({ capturedGeneration, chipHidden, chipThreshold, footerFixed, headerFixed, listGeneration })
 

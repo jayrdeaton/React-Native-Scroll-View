@@ -26,11 +26,11 @@ export type ScrollViewProps = RNScrollViewProps & {
   refreshing?: boolean
 }
 
-const ScrollViewInner = ({ chipProps, chipThreshold, children, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, horizontal, keyboardAware, onChipPress, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, refreshing, style, ...props }: ScrollViewProps) => {
+const ScrollViewInner = ({ chipProps, chipThreshold, children, contentContainerStyle: externalContentContainerStyle, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, horizontal, keyboardAware, onChipPress, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, refreshing, style, ...props }: ScrollViewProps) => {
   const scrollView = useRef<RNScrollView>(null)
   const isHorizontal = horizontal === true
 
-  const { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, isHorizontal, keyboardAware, pullSearchHeight, style })
+  const { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, contentPadding, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, isHorizontal, keyboardAware, pullSearchHeight, style })
   const { listGeneration, onListUnmount } = useContext(ScrollViewContext)
   // -1 never matches a real generation (starts at 0, only increments) — the runOnUI call below
   // corrects it before any scroll event could observe the placeholder.
@@ -88,6 +88,7 @@ const ScrollViewInner = ({ chipProps, chipThreshold, children, footerFixed: foot
     <View style={containerStyle}>
       <Animated.ScrollView
         {...props}
+        contentContainerStyle={contentPadding ? [externalContentContainerStyle, contentPadding] : externalContentContainerStyle}
         contentInset={contentInset}
         contentOffset={contentOffset}
         onMomentumScrollEnd={handleMomentumScrollEnd}

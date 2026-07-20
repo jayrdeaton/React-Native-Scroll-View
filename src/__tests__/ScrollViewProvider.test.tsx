@@ -1,5 +1,5 @@
 import { act, render } from '@testing-library/react'
-import React, { useContext } from 'react'
+import { useContext } from 'react'
 
 import { ScrollViewContext } from '../ScrollViewContext'
 import { ScrollViewProvider } from '../ScrollViewProvider'

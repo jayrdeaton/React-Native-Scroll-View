@@ -10,8 +10,7 @@ module.exports = {
     '^react-native-gesture-handler$': '<rootDir>/src/__mocks__/react-native-gesture-handler.ts',
     '^react-native-safe-area-context$': '<rootDir>/src/__mocks__/react-native-safe-area-context.ts',
     '^react-native-paper$': '<rootDir>/src/__mocks__/react-native-paper.ts',
-    '^@rific/auto-paper$': '<rootDir>/src/__mocks__/auto-paper.ts',
-    '^@shopify/flash-list$': '<rootDir>/src/__mocks__/flash-list.ts'
+    '^@rific/auto-paper$': '<rootDir>/src/__mocks__/auto-paper.ts'
   },
   transform: {
     '^.+\\.tsx?$': [

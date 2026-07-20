@@ -27,7 +27,7 @@
   "type": "commonjs",
   "exports": {
     ".": {
-      "react-native": "./src/index.ts",
+      "react-native": "./dist/index.js",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
@@ -35,7 +35,7 @@
   },
   "main": "dist/index.js",
   "module": "dist/index.mjs",
-  "react-native": "src/index.ts",
+  "react-native": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist",
@@ -45,6 +45,7 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "build:watch": "tsup src/index.ts --format cjs,esm --dts --watch",
     "fix": "eslint --fix",
     "lint": "eslint",
     "prepublishOnly": "npm run build",
@@ -86,7 +87,7 @@
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
     "tsup": "^8.0.0",
-    "typescript": "^5.0.0",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.3"
   },
   "peerDependencies": {

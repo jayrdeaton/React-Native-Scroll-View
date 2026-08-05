@@ -10,6 +10,7 @@ export type ScrollViewProviderProps = {
   blur?: boolean
   children: ReactNode
   fixed?: boolean
+  footerAboveKeyboard?: boolean
   footerFixed?: boolean
   headerFixed?: boolean
   snapBack?: boolean
@@ -18,7 +19,7 @@ export type ScrollViewProviderProps = {
   tabBarHeight?: number
 }
 
-export const ScrollViewProvider = ({ blur, children, fixed = false, footerFixed, headerFixed, snapBack, snapBackFooter, snapBackHeader, tabBarHeight = 60 }: ScrollViewProviderProps) => {
+export const ScrollViewProvider = ({ blur, children, fixed = false, footerAboveKeyboard = false, footerFixed, headerFixed, snapBack, snapBackFooter, snapBackHeader, tabBarHeight = 0 }: ScrollViewProviderProps) => {
   const { settings } = useContext(ScrollViewSettingsContext)
   const effectiveBlur = useBlur(blur)
   const effectiveSnapBack = snapBack ?? settings.snapBack
@@ -44,10 +45,16 @@ export const ScrollViewProvider = ({ blur, children, fixed = false, footerFixed,
   }, [effectiveSnapBack, effectiveSnapBackFooter, effectiveSnapBackHeader, snapBackFooterShared, snapBackHeaderShared])
   const setHeaderHeight = useCallback(
     (h: number | null) => {
+      // react-native-screens' web shim hides an inactive screen via display:none on an
+      // ancestor instead of unmounting it, so the header's ResizeObserver-backed onLayout
+      // keeps firing while hidden and reports a spurious 0 (no layout box), then again once
+      // revealed. Never let a spurious 0 clobber a real height — only a true remount
+      // (headerHeight reset to null) should ever legitimately shrink it back to 0.
+      if (h === 0 && headerHeight) return
       setHeaderHeightState(h)
       headerHeightShared.value = h ?? 0
     },
-    [headerHeightShared]
+    [headerHeight, headerHeightShared]
   )
   const onListUnmount = useCallback(() => {
     listGeneration.value += 1
@@ -73,6 +80,6 @@ export const ScrollViewProvider = ({ blur, children, fixed = false, footerFixed,
   const scrollHeight = useMemo(() => Dimensions.get('window').height - (headerHeight ?? 0) - footerHeight, [headerHeight, footerHeight])
   const effectiveHeaderFixed = fixed || (headerFixed ?? settings.headerFixed)
   const effectiveFooterFixed = fixed || (footerFixed ?? settings.footerFixed)
-  const value = useMemo(() => ({ blur: effectiveBlur, footerHeight, footerHeightShared, footerFixed: effectiveFooterFixed, footerOffset, headerHeight, headerHeightShared, headerFixed: effectiveHeaderFixed, headerOffset, jsListGeneration, listGeneration, onJsListUnmount, onListUnmount, progress, pullSearchHeightShared, progressing, scrollHeight, scrollPosition, setFooterHeight, setHeaderHeight, setProgress, setProgressing, snapBackFooterShared, snapBackHeaderShared, tabBarHeight }), [effectiveBlur, effectiveFooterFixed, effectiveHeaderFixed, footerHeight, footerHeightShared, footerOffset, headerHeight, headerHeightShared, headerOffset, jsListGeneration, listGeneration, onJsListUnmount, onListUnmount, progress, pullSearchHeightShared, progressing, scrollHeight, scrollPosition, setFooterHeight, setHeaderHeight, snapBackFooterShared, snapBackHeaderShared, tabBarHeight])
+  const value = useMemo(() => ({ blur: effectiveBlur, footerAboveKeyboard, footerHeight, footerHeightShared, footerFixed: effectiveFooterFixed, footerOffset, headerHeight, headerHeightShared, headerFixed: effectiveHeaderFixed, headerOffset, jsListGeneration, listGeneration, onJsListUnmount, onListUnmount, progress, pullSearchHeightShared, progressing, scrollHeight, scrollPosition, setFooterHeight, setHeaderHeight, setProgress, setProgressing, snapBackFooterShared, snapBackHeaderShared, tabBarHeight }), [effectiveBlur, footerAboveKeyboard, effectiveFooterFixed, effectiveHeaderFixed, footerHeight, footerHeightShared, footerOffset, headerHeight, headerHeightShared, headerOffset, jsListGeneration, listGeneration, onJsListUnmount, onListUnmount, progress, pullSearchHeightShared, progressing, scrollHeight, scrollPosition, setFooterHeight, setHeaderHeight, snapBackFooterShared, snapBackHeaderShared, tabBarHeight])
   return <ScrollViewContext.Provider value={value}>{children}</ScrollViewContext.Provider>
 }

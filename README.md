@@ -71,12 +71,13 @@ Screen-level provider that owns header/footer state and scroll position. Must wr
 |------|------|---------|-------------|
 | `blur` | `boolean` | system | Enable frosted-glass backdrop on header/footer |
 | `fixed` | `boolean` | `false` | Pin both header and footer (overrides `headerFixed`/`footerFixed`) |
+| `footerAboveKeyboard` | `boolean` | `false` | With a fixed footer, float it above the keyboard instead of letting the keyboard cover it — see [Keyboard awareness](#keyboard-awareness) |
 | `headerFixed` | `boolean` | `false` | Pin header; overrides settings default |
 | `footerFixed` | `boolean` | `false` | Pin footer; overrides settings default |
 | `snapBack` | `boolean` | `false` | Snap header and footer back when scrolling up |
 | `snapBackHeader` | `boolean` | — | Override `snapBack` for header only |
 | `snapBackFooter` | `boolean` | — | Override `snapBack` for footer only |
-| `tabBarHeight` | `number` | `60` | Used to compute safe scroll height |
+| `tabBarHeight` | `number` | `0` | Extra bottom inset reserved for a host app's own persistent tab bar (added on top of the safe-area inset, independent of any `ScrollViewFooter`) |
 
 ---
 
@@ -266,6 +267,45 @@ export default function SearchScreen() {
 | `debounce` | `boolean` | Debounce `onChangeText` by 500ms |
 
 **Ref methods**: `focus()`, `blur()`
+
+---
+
+## Keyboard awareness
+
+Pass `keyboardAware` to any scroll component (`ScrollView`, `FlatList`, `SectionList`, `CustomList`) to add the keyboard's height to the bottom content inset, so a focused field near the bottom of the content stays above the keyboard instead of getting hidden behind it.
+
+```tsx
+<ScrollViewProvider>
+  <ScrollViewHeader title="Edit profile" />
+  <ScrollView keyboardAware>
+    <TextInput label="Name" />
+    <TextInput label="Bio" multiline />
+  </ScrollView>
+</ScrollViewProvider>
+```
+
+By default, a fixed `ScrollViewFooter` doesn't follow the keyboard — it stays pinned to the screen bottom and the keyboard simply covers it. If the footer holds something the user needs while typing (a submit button, say), set `footerAboveKeyboard` on `ScrollViewProvider` so the footer floats above the keyboard instead, reachable without dismissing it first:
+
+```tsx
+<ScrollViewProvider footerFixed footerAboveKeyboard>
+  <ScrollViewHeader title="Edit profile" />
+  <ScrollView keyboardAware>
+    <TextInput label="Name" />
+    <TextInput label="Bio" multiline />
+  </ScrollView>
+  <ScrollViewFooter>
+    <Button mode="contained" onPress={handleSubmit}>Save</Button>
+  </ScrollViewFooter>
+</ScrollViewProvider>
+```
+
+`footerAboveKeyboard` only has an effect when the footer is fixed (`footerFixed`) — a footer that scrolls away with content has nothing to reserve keyboard space for. It's meant to be paired with `keyboardAware` on the scroll component; without it, the content itself won't reserve extra space for the keyboard even though the footer floats above it.
+
+Floating is done by growing the footer's own container rather than translating it, so its `BlurView` backdrop always stays sealed against the true physical screen bottom — nothing shows through beneath it, including at the keyboard's rounded top corners.
+
+While floating above an open keyboard, the footer also drops its safe-area bottom inset — it's no longer sitting at the physical screen edge, so that padding would just be dead space under its content. As the keyboard closes, the inset ramps back in continuously over the last bit of its travel rather than snapping back once it's fully closed, so the content settles at the safe-area line smoothly instead of dropping to the physical bottom edge and correcting back up.
+
+Keyboard awareness is native-only — `useKeyboardInset` (and therefore `keyboardAware`/`footerAboveKeyboard`) always resolves to `0` height on web.
 
 ---
 

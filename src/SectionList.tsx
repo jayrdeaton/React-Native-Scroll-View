@@ -1,5 +1,5 @@
 import { memo, type ReactNode, type RefObject, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { Dimensions, type NativeScrollEvent, type NativeSyntheticEvent, SectionList as RNSectionList, type SectionListProps as RNSectionListProps, View } from 'react-native'
+import { Dimensions, type NativeScrollEvent, type NativeSyntheticEvent, Platform, SectionList as RNSectionList, type SectionListProps as RNSectionListProps, View } from 'react-native'
 import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture-handler'
 import Animated, { runOnUI, useSharedValue } from 'react-native-reanimated'
 
@@ -34,7 +34,7 @@ const SectionListInner = <ItemT, SectionT extends { data: ReadonlyArray<ItemT> }
 
   const { stickySectionHeadersEnabled = true, renderSectionHeader, ...passThroughProps } = props as RNSectionListProps<ItemT, SectionT>
 
-  const { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, contentPadding, footerFixed, headerFixed, headerHeight } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, keyboardAware, pullSearchHeight, style })
+  const { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, contentPadding, footerFixed, headerFixed, headerHeight } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, hideUntilMeasured: true, keyboardAware, pullSearchHeight, style })
   const { listGeneration, onListUnmount } = useContext(ScrollViewContext)
   // -1 never matches a real generation (starts at 0, only increments) — the runOnUI call below
   // corrects it before any scroll event could observe the placeholder.
@@ -51,8 +51,16 @@ const SectionListInner = <ItemT, SectionT extends { data: ReadonlyArray<ItemT> }
   // imperative scrollTo calls). Routing the write itself through runOnUI puts it on the UI thread's
   // own serial queue, so it's guaranteed to run before any onScroll worklet invocation that could
   // only be queued after this component finishes mounting.
+  //
+  // Web has no such thread split, though — see ScrollView.tsx's own doc comment on this same
+  // pattern for why runOnUI's deferred-to-next-frame behavior there leaves a real gap, and why a
+  // synchronous assignment is the correct fix rather than a workaround.
   useLayoutEffect(() => {
     const generation = listGeneration.value
+    if (Platform.OS === 'web') {
+      capturedGeneration.value = generation
+      return
+    }
     runOnUI((gen: number) => {
       'worklet'
       capturedGeneration.value = gen

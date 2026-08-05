@@ -12,6 +12,7 @@ export type ScrollViewHeaderProps = {
   actionSize?: number
   actionStyle?: ViewStyle
   backAction?: () => void
+  backActionAccessibilityLabel?: string
   backActionFixed?: boolean
   caption?: string
   centerContent?: ReactNode
@@ -39,7 +40,7 @@ const ActionBg = ({ blur, style }: ActionBgProps) =>
     </View>
   )
 
-export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, backActionFixed, caption, centerContent, children, iconSize, style, title, topInset = true, trailingAction, trailingActionFixed = true }: ScrollViewHeaderProps) => {
+export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, backActionAccessibilityLabel, backActionFixed, caption, centerContent, children, iconSize, style, title, topInset = true, trailingAction, trailingActionFixed = true }: ScrollViewHeaderProps) => {
   const { blur, headerHeight, headerFixed, headerOffset, progress, progressing, pullSearchHeightShared, scrollPosition, setHeaderHeight, snapBackHeaderShared } = useContext(ScrollViewContext)
   const { settings } = useContext(ScrollViewSettingsContext)
   const effectiveBackActionFixed = backActionFixed ?? settings.backActionFixed
@@ -53,28 +54,40 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
   }: LayoutChangeEvent) => {
     if (headerHeight !== height) setHeaderHeight(height)
   }
+  const actionMargin = 4
+  const contentMinHeight = actionSize + 2 * actionMargin
+  // Same natural height the header renders at in-flow before headerHeight is ever measured (see
+  // useScrollList's containerStyle comment for that same "in-flow first, absolute once measured"
+  // pattern) — used as the blur backdrop's own height for that same pre-measurement window, so it
+  // doesn't render as a flat, unblurred box for the ~60-80ms an onLayout round trip takes on web.
+  const unmeasuredHeight = top + contentMinHeight
+  // Every one of these worklets reads several SharedValues (scrollPosition, snapBackHeaderShared,
+  // headerOffset, pullSearchHeightShared) whose *mutations* — not just headerFixed/headerHeight
+  // changing — need to re-trigger the style recompute. Reanimated's automatic worklet dependency
+  // capture covers this on native without needing them listed, but not on web, where a SharedValue
+  // has to appear in the array itself (object identity, not .value) for its mutations to be
+  // treated as reactive — omitting them here silently froze the header/blur/progress-bar's scroll
+  // tracking on web at whatever scrollPosition happened to be when headerHeight last changed.
   const translateStyle = useAnimatedStyle(() => {
     if (headerFixed) return { transform: [{ translateY: 0 }] }
     if (snapBackHeaderShared.value) return { transform: [{ translateY: headerOffset.value }] }
     const effective = scrollPosition.value + (headerHeight ?? 0) - pullSearchHeightShared.value
     if (effective <= 0) return { transform: [{ translateY: 0 }] }
     return { transform: [{ translateY: -effective }] }
-  }, [headerFixed, headerHeight])
+  }, [headerFixed, headerHeight, headerOffset, pullSearchHeightShared, scrollPosition, snapBackHeaderShared])
   const blurStyle = useAnimatedStyle(() => {
+    if (headerHeight === null) return { height: unmeasuredHeight }
     if (!headerHeight) return { height: 0 }
     if (headerFixed) return { height: headerHeight }
-    const h = headerHeight ?? 0
-    const translateY = snapBackHeaderShared.value ? headerOffset.value : -Math.max(0, scrollPosition.value + h - pullSearchHeightShared.value)
-    return { height: Math.max(h + translateY, top) }
-  }, [headerFixed, headerHeight, top])
+    const translateY = snapBackHeaderShared.value ? headerOffset.value : -Math.max(0, scrollPosition.value + headerHeight - pullSearchHeightShared.value)
+    return { height: Math.max(headerHeight + translateY, top) }
+  }, [headerFixed, headerHeight, top, unmeasuredHeight, headerOffset, pullSearchHeightShared, scrollPosition, snapBackHeaderShared])
   const progressStyle = useAnimatedStyle(() => {
     const h = headerHeight ?? 0
     if (headerFixed) return { top: h }
     const slide = snapBackHeaderShared.value ? -headerOffset.value : Math.max(0, scrollPosition.value + h - pullSearchHeightShared.value)
     return { top: Math.max(h - slide, top) }
-  }, [headerFixed, headerHeight, top])
-  const actionMargin = 4
-  const contentMinHeight = actionSize + 2 * actionMargin
+  }, [headerFixed, headerHeight, top, headerOffset, pullSearchHeightShared, scrollPosition, snapBackHeaderShared])
   const actionTop = top + actionMargin
   const buttonStyle = { borderRadius: actionSize, height: actionSize, margin: 0, width: actionSize }
   const actionShadow = { borderRadius: actionSize / 2, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 2 }
@@ -83,7 +96,7 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
   return (
     <>
       <Animated.View pointerEvents='none' style={[styles.blur, blurStyle]}>
-        {headerHeight !== null && headerHeight > 0 && <BlurView blur={blur} style={[styles.blurInner, { height: headerHeight }]} />}
+        {headerHeight !== 0 && <BlurView blur={blur} style={[styles.blurInner, { height: headerHeight ?? unmeasuredHeight }]} />}
       </Animated.View>
       <Animated.View onLayout={handleLayout} pointerEvents='box-none' style={[headerHeight === null ? styles.headerInit : styles.header, translateStyle]}>
         <View style={[{ paddingTop: top }, style]}>
@@ -121,12 +134,12 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
         (effectiveBackActionFixed ? (
           <Animated.View style={leadingStyle}>
             <ActionBg blur={blur} style={actionStyle} />
-            <Appbar.BackAction onPress={backAction} size={iconSize ?? actionSize / 2} style={buttonStyle} />
+            <Appbar.BackAction accessibilityLabel={backActionAccessibilityLabel} onPress={backAction} size={iconSize ?? actionSize / 2} style={buttonStyle} />
           </Animated.View>
         ) : (
           <Animated.View style={[leadingStyle, translateStyle]}>
             <ActionBg blur={blur} style={actionStyle} />
-            <Appbar.BackAction onPress={backAction} size={iconSize ?? actionSize / 2} style={buttonStyle} />
+            <Appbar.BackAction accessibilityLabel={backActionAccessibilityLabel} onPress={backAction} size={iconSize ?? actionSize / 2} style={buttonStyle} />
           </Animated.View>
         ))}
       {trailingAction &&

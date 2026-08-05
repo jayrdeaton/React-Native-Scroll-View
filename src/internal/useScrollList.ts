@@ -15,16 +15,17 @@ const CHIP_SLIDE = 48
 export type UseScrollListOptions = {
   footerFixed?: boolean
   headerFixed?: boolean
+  hideUntilMeasured?: boolean
   isHorizontal?: boolean
   keyboardAware?: boolean
   pullSearchHeight?: number
   style?: StyleProp<ViewStyle>
 }
 
-export function useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, isHorizontal, keyboardAware, pullSearchHeight, style }: UseScrollListOptions = {}) {
+export function useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, hideUntilMeasured, isHorizontal, keyboardAware, pullSearchHeight, style }: UseScrollListOptions = {}) {
   const insets = useSafeAreaInsets()
   const keyboardHeight = useKeyboardInset()
-  const { footerHeight, footerFixed: contextFooterFixed, headerHeight, headerFixed: contextHeaderFixed, headerOffset, pullSearchHeightShared, scrollPosition, snapBackHeaderShared } = useContext(ScrollViewContext)
+  const { footerAboveKeyboard, footerHeight, footerFixed: contextFooterFixed, headerHeight, headerFixed: contextHeaderFixed, headerOffset, pullSearchHeightShared, scrollPosition, snapBackHeaderShared, tabBarHeight } = useContext(ScrollViewContext)
 
   const headerFixed = isHorizontal ? true : (headerFixedProp ?? contextHeaderFixed)
   const footerFixed = isHorizontal ? true : (footerFixedProp ?? contextFooterFixed)
@@ -33,12 +34,36 @@ export function useScrollList({ footerFixed: footerFixedProp, headerFixed: heade
     pullSearchHeightShared.value = usesContentInset ? (pullSearchHeight ?? 0) : 0
   }, [pullSearchHeight, pullSearchHeightShared])
 
-  // First render (headerHeight===0): flex:1, hidden until header measures so the key=0→1
-  // transition (and contentOffset change) never appears as a visible jump.
-  // After header measures: absoluteFill with correct contentOffset — then reveal.
-  const containerStyle = useMemo(() => (headerHeight === null ? [{ flex: 1, opacity: 0 }, style] : [StyleSheet.absoluteFill, style]), [headerHeight, style])
+  // First render (headerHeight===null): flex:1, sitting naturally below the in-flow header —
+  // same visual position content ends up in after the swap below (absoluteFill + paddingTop
+  // matching the now-measured headerHeight), so no hiding is needed for this transition on its
+  // own. hideUntilMeasured is only for SectionList: its key={headerHeight>0?1:0} forces a real
+  // remount of the underlying native list on this exact transition, and that remount is what
+  // needs hiding, not this container swap itself — ScrollView/FlatList/CustomList never remount
+  // here, so unconditionally hiding this container regressed a real "flash of blank" on every
+  // fresh mount for them (2026-08-03).
+  const containerStyle = useMemo(() => (headerHeight === null ? [{ flex: 1, opacity: hideUntilMeasured ? 0 : 1 }, style] : [StyleSheet.absoluteFill, style]), [headerHeight, hideUntilMeasured, style])
 
-  const insetGeometry = useMemo(() => ({ bottom: (footerFixed ? footerHeight || insets.bottom : insets.bottom) + (keyboardAware ? keyboardHeight : 0), top: headerHeight ?? 0 }), [footerFixed, footerHeight, insets.bottom, headerHeight, keyboardAware, keyboardHeight])
+  // tabBarHeight reserves space for a consuming app's own persistent tab bar - a fixture outside
+  // this package's header/footer concepts entirely, so it's added on top of whichever base the
+  // footerFixed branch below resolves to (footerHeight already bakes in insets.bottom itself; see
+  // ScrollViewFooter's own paddingBottom).
+  //
+  // When footerAboveKeyboard opts the (fixed) footer into floating above the keyboard instead of
+  // sitting behind it, footerHeight ALREADY includes the current keyboardHeight — ScrollViewFooter
+  // grows its own container by keyboardHeight to float (see its containerPaddingBottom), rather
+  // than translating a fixed-height bar, so onLayout reports the combined height. Adding
+  // keyboardHeight again here would double-count it. Otherwise (not floating) ScrollViewFooter pins
+  // itself with plain `position: 'absolute', bottom: 0` with no keyboard-awareness of its own, so
+  // an open keyboard simply covers it rather than stacking above it - reserving
+  // footerReserve + keyboardHeight in that case would leave a gap the size of the now-hidden footer
+  // between the focused input and the keyboard, so max() reserves only whichever bottom obstruction
+  // is actually taller right now.
+  const insetGeometry = useMemo(() => {
+    const footerReserve = footerFixed ? footerHeight || insets.bottom : insets.bottom
+    const bottom = (!keyboardAware || (footerFixed && footerAboveKeyboard) ? footerReserve : Math.max(footerReserve, keyboardHeight)) + tabBarHeight
+    return { bottom, top: headerHeight ?? 0 }
+  }, [footerAboveKeyboard, footerFixed, footerHeight, insets.bottom, tabBarHeight, headerHeight, keyboardAware, keyboardHeight])
   // Outside inset mode the same geometry is applied as content padding instead; contentInset is
   // zeroed (not omitted) so consumers' offset math — scroll-to-top targets, minHeight — stays
   // correct in the raw 0-based coordinate space those platforms actually scroll in.
@@ -54,6 +79,10 @@ export function useScrollList({ footerFixed: footerFixedProp, headerFixed: heade
   const contentOffset = usesContentInset ? insetContentOffset : ZERO_OFFSET
 
   const chipHidden = useSharedValue(1)
+  // chipHidden/snapBackHeaderShared/headerOffset/scrollPosition/pullSearchHeightShared all need to
+  // be listed here too, not just read — see ScrollViewHeader's translateStyle for why (web-only
+  // reanimated reactivity gap: a SharedValue's mutations don't retrigger useAnimatedStyle unless
+  // the value itself is in this array).
   const chipStyle = useAnimatedStyle(() => {
     const pointerEvents = chipHidden.value ? ('none' as const) : ('box-none' as const)
     if (isHorizontal) {
@@ -73,7 +102,7 @@ export function useScrollList({ footerFixed: footerFixedProp, headerFixed: heade
       top,
       transform: [{ translateY: chipHidden.value ? withTiming(-CHIP_SLIDE) : withTiming(0) }]
     }
-  }, [isHorizontal, headerFixed, headerHeight, insets.top])
+  }, [isHorizontal, headerFixed, headerHeight, insets.top, chipHidden, snapBackHeaderShared, headerOffset, scrollPosition, pullSearchHeightShared])
 
   return { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, contentPadding, footerFixed, headerFixed, headerHeight, insets, isHorizontal: isHorizontal ?? false }
 }

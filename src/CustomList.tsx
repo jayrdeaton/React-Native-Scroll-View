@@ -1,5 +1,5 @@
 import { type ComponentType, memo, type ReactElement, type ReactNode, type RefObject, useCallback, useContext, useLayoutEffect, useMemo, useRef } from 'react'
-import { Dimensions, type NativeScrollEvent, type NativeSyntheticEvent, type StyleProp, View, type ViewStyle } from 'react-native'
+import { Dimensions, type NativeScrollEvent, type NativeSyntheticEvent, Platform, type StyleProp, View, type ViewStyle } from 'react-native'
 import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture-handler'
 import { runOnUI, useSharedValue } from 'react-native-reanimated'
 
@@ -52,8 +52,16 @@ const CustomListInner = <P extends object>({ chipProps, chipThreshold, component
   // imperative scrollTo calls). Routing the write itself through runOnUI puts it on the UI thread's
   // own serial queue, so it's guaranteed to run before any onScroll worklet invocation that could
   // only be queued after this component finishes mounting.
+  //
+  // Web has no such thread split, though — see ScrollView.tsx's own doc comment on this same
+  // pattern for why runOnUI's deferred-to-next-frame behavior there leaves a real gap, and why a
+  // synchronous assignment is the correct fix rather than a workaround.
   useLayoutEffect(() => {
     const generation = listGeneration.value
+    if (Platform.OS === 'web') {
+      capturedGeneration.value = generation
+      return
+    }
     runOnUI((gen: number) => {
       'worklet'
       capturedGeneration.value = gen

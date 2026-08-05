@@ -19,7 +19,7 @@ const Platform = {
 
 export { Dimensions, Platform, StyleSheet }
 
-export const View = stub
+export const View = jest.fn(stub)
 export const Text = stub
 export const Pressable = stub
 export const TouchableOpacity = stub

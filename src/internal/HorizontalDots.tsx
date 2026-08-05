@@ -29,6 +29,11 @@ type DotProps = {
 }
 
 const Dot = ({ activeColor, index, inactiveColor, pageWidth, scrollPosition }: DotProps) => {
+  // Explicit array required on web even though nothing here looks platform-specific: without
+  // reanimated's Babel plugin active for the web bundle, useAnimatedStyle has no way to
+  // auto-extract dependencies and throws outright rather than silently under-tracking — omitting
+  // this array isn't a lesser version of the header/footer bug elsewhere in this package, it's a
+  // hard crash (confirmed live on the horizontal-pager demo).
   const circleStyle = useAnimatedStyle(() => {
     const page = scrollPosition.value / pageWidth
     const distance = Math.abs(index - page)
@@ -36,7 +41,7 @@ const Dot = ({ activeColor, index, inactiveColor, pageWidth, scrollPosition }: D
     const size = DOT_FULL + (DOT_SMALL - DOT_FULL) * t
     const backgroundColor = interpolateColor(t, [0, 1], [activeColor, inactiveColor])
     return { backgroundColor, borderRadius: size / 2, height: size, width: size }
-  })
+  }, [scrollPosition, pageWidth, index, activeColor, inactiveColor])
   return (
     <View style={styles.dotContainer}>
       <Animated.View style={circleStyle} />
@@ -56,16 +61,19 @@ export const HorizontalDots = ({ total }: Props) => {
   const activeColor = theme.colors.primary
   const inactiveColor = theme.colors.outlineVariant
 
-  const pillContainerStyle = useAnimatedStyle(() => ({
-    bottom: Math.max(footerHeightShared.value, insetsBottom) + 8
-  }))
+  const pillContainerStyle = useAnimatedStyle(
+    () => ({
+      bottom: Math.max(footerHeightShared.value, insetsBottom) + 8
+    }),
+    [footerHeightShared, insetsBottom]
+  )
 
   const rowStyle = useAnimatedStyle(() => {
     const page = scrollPosition.value / width
     const maxOffset = Math.max(0, (total - CLIP_COUNT) * DOT_STEP)
     const offset = Math.max(0, Math.min((page - (CLIP_COUNT - 1) / 2) * DOT_STEP, maxOffset))
     return { transform: [{ translateX: -offset }] }
-  })
+  }, [scrollPosition, width, total])
 
   return (
     <Animated.View pointerEvents='none' style={[styles.pillContainer, pillContainerStyle]}>

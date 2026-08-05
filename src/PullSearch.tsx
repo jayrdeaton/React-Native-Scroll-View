@@ -47,7 +47,10 @@ export const PullSearch = forwardRef<PullSearchHandle, PullSearchProps>(function
     (isHidden, wasHidden) => {
       if (isHidden && !wasHidden) runOnJS(blurInput)()
     },
-    [barHeight, headerHeight, blurInput]
+    // scrollPosition has to be listed too, not just read — see useStickyHeaders' useAnimatedReaction
+    // for why: on web, without reanimated's Babel plugin active, an unlisted SharedValue mutation
+    // never re-triggers this reaction (confirmed empirically elsewhere in this package).
+    [barHeight, headerHeight, blurInput, scrollPosition]
   )
 
   const handleClear = useCallback(() => {
@@ -85,7 +88,7 @@ export const PullSearch = forwardRef<PullSearchHandle, PullSearchProps>(function
     const showY = -h
     const hideY = -h + barHeight
     return { opacity: interpolate(scrollPosition.value, [showY, hideY], [1, 0], Extrapolation.CLAMP) }
-  }, [barHeight, headerHeight])
+  }, [barHeight, headerHeight, scrollPosition])
 
   return (
     <Animated.View onLayout={handleLayout} style={[styles.container, animatedStyle]}>

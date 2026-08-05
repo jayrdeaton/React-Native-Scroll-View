@@ -160,6 +160,7 @@ export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: extern
     return () => clearTimeout(fallback)
     // Intentionally runs once per mount only, using whatever remountTarget was captured at
     // construction — not a dep that should retrigger this effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Transition to 'ready' once both measurements are available

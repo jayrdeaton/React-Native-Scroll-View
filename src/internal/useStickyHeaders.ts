@@ -62,11 +62,21 @@ export function useStickyHeaders(headerFixed: boolean, enabled: boolean): Sticky
     (curr, prev) => {
       if (curr !== prev) runOnJS(setActiveIndex)(curr)
     },
-    [enabled, headerFixed, insetsTop]
+    // Same web-only reanimated gap as useAnimatedStyle elsewhere in this file: this "prepare"
+    // function's own SharedValue reads (sectionYPositions, headerHeightShared, scrollPosition,
+    // snapBackHeaderShared, headerOffset, pullSearchHeightShared) need to be listed explicitly too
+    // — confirmed empirically that without them, useAnimatedReaction re-evaluates once on mount and
+    // then never again on web, permanently freezing activeIndex/the active sticky section.
+    [enabled, headerFixed, insetsTop, sectionYPositions, headerHeightShared, scrollPosition, snapBackHeaderShared, headerOffset, pullSearchHeightShared]
   )
 
   // Positions the clip container at stickyTop so overflow:hidden hides the outgoing
   // header as it slides above the sticky line during a push transition.
+  // Every SharedValue read below (headerHeightShared, scrollPosition, snapBackHeaderShared,
+  // headerOffset, pullSearchHeightShared, and for overlayStyle also contentIndexShared/
+  // sectionYPositions/sectionHeights) has to be listed in the array too — see
+  // ScrollViewHeader's translateStyle for why: on web, reanimated doesn't treat mutations to a
+  // SharedValue as a reactive trigger for useAnimatedStyle unless it's in this array.
   const clipStyle = useAnimatedStyle(() => {
     const hHeight = headerHeightShared.value
     const scrollPos = scrollPosition.value
@@ -80,7 +90,7 @@ export function useStickyHeaders(headerFixed: boolean, enabled: boolean): Sticky
       stickyTop = effective <= 0 ? hHeight : Math.max(insetsTop, hHeight - effective)
     }
     return { top: stickyTop }
-  }, [enabled, headerFixed, insetsTop])
+  }, [enabled, headerFixed, insetsTop, headerHeightShared, scrollPosition, snapBackHeaderShared, headerOffset, pullSearchHeightShared])
 
   // overlayStyle positions the header at top:0 relative to the clip container.
   // The push animation uses 1:1 speed with pushThreshold = stickyTop + currentHeight
@@ -118,7 +128,7 @@ export function useStickyHeaders(headerFixed: boolean, enabled: boolean): Sticky
     }
 
     return { opacity: 1, top: 0, transform: [{ translateY }] }
-  }, [enabled, headerFixed, insetsTop])
+  }, [enabled, headerFixed, insetsTop, contentIndexShared, sectionYPositions, headerHeightShared, scrollPosition, snapBackHeaderShared, headerOffset, pullSearchHeightShared, sectionHeights])
 
   // pageY is the view's window-coordinate Y from view.measure().
   // contentY = pageY + contentOffset.y, since screenY = contentY - contentOffset.y.

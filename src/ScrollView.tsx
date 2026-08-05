@@ -1,5 +1,5 @@
 import { memo, type RefObject, useCallback, useContext, useLayoutEffect, useMemo, useRef } from 'react'
-import { type NativeScrollEvent, type NativeSyntheticEvent, ScrollView as RNScrollView, type ScrollViewProps as RNScrollViewProps, View } from 'react-native'
+import { type NativeScrollEvent, type NativeSyntheticEvent, Platform, ScrollView as RNScrollView, type ScrollViewProps as RNScrollViewProps, View } from 'react-native'
 import { Gesture, GestureDetector, type GestureType } from 'react-native-gesture-handler'
 import Animated, { runOnUI, useSharedValue } from 'react-native-reanimated'
 
@@ -47,8 +47,23 @@ const ScrollViewInner = ({ chipProps, chipThreshold, children, contentContainerS
   // imperative scrollTo calls). Routing the write itself through runOnUI puts it on the UI thread's
   // own serial queue, so it's guaranteed to run before any onScroll worklet invocation that could
   // only be queued after this component finishes mounting.
+  //
+  // Web has no such thread split, though — react-native-worklets' own runOnUI there (see its
+  // threads.js) only enqueues the callback for the NEXT requestAnimationFrame, it doesn't run it
+  // synchronously. That opens exactly the gap the native path exists to close: a scroll event
+  // (including useScrollInit's own mount-time imperative scrollTo) landing before that deferred
+  // frame sees capturedGeneration still at its -1 placeholder, fails the generation check below,
+  // and — since this effect only ever runs once per mount — never gets a second chance, silently
+  // disabling scroll tracking (and therefore header/footer scroll-away) for this instance's entire
+  // lifetime. Assigning directly is both simpler and provably correct on web: single-threaded JS
+  // makes a synchronous write immediately visible to any read that follows it in program order, so
+  // there's no cross-thread visibility gap here to guard against in the first place.
   useLayoutEffect(() => {
     const generation = listGeneration.value
+    if (Platform.OS === 'web') {
+      capturedGeneration.value = generation
+      return
+    }
     runOnUI((gen: number) => {
       'worklet'
       capturedGeneration.value = gen

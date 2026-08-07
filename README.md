@@ -299,7 +299,7 @@ By default, a fixed `ScrollViewFooter` doesn't follow the keyboard — it stays 
 </ScrollViewProvider>
 ```
 
-`footerAboveKeyboard` only has an effect when the footer is fixed (`footerFixed`) — a footer that scrolls away with content has nothing to reserve keyboard space for. It's meant to be paired with `keyboardAware` on the scroll component; without it, the content itself won't reserve extra space for the keyboard even though the footer floats above it.
+`footerAboveKeyboard` only has an effect when the footer is fixed (`footerFixed`) — a footer that scrolls away with content has nothing to reserve keyboard space for. Always pair it with `keyboardAware: true` on any scroll component that could have a focused input while it's visible. Content always reserves space for the current footer height regardless of `keyboardAware` (so a fixed footer never overlaps it) — and while floating, that height already includes the keyboard, so a list with `keyboardAware: false` ends up reserving keyboard space anyway, just indirectly through the footer rather than directly. There's no useful configuration where you'd want the footer reachable above the keyboard but *not* want that same list's own content clear of it too, so don't rely on `keyboardAware: false` to opt a list out of this while `footerAboveKeyboard` is on — it won't.
 
 Floating is done by growing the footer's own container rather than translating it, so its `BlurView` backdrop always stays sealed against the true physical screen bottom — nothing shows through beneath it, including at the keyboard's rounded top corners.
 

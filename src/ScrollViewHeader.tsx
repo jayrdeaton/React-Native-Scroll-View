@@ -2,7 +2,7 @@ import { BlurView } from '@rific/auto-paper'
 import { type ReactNode, useContext } from 'react'
 import { type LayoutChangeEvent, StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import { Appbar, ProgressBar, Surface, useTheme } from 'react-native-paper'
-import Animated, { useAnimatedStyle } from 'react-native-reanimated'
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ScrollViewContext } from './ScrollViewContext'
@@ -41,17 +41,24 @@ const ActionBg = ({ blur, style }: ActionBgProps) =>
   )
 
 export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, backActionAccessibilityLabel, backActionFixed, caption, centerContent, children, iconSize, style, title, topInset = true, trailingAction, trailingActionFixed = true }: ScrollViewHeaderProps) => {
-  const { blur, headerHeight, headerFixed, headerOffset, progress, progressing, pullSearchHeightShared, scrollPosition, setHeaderHeight, snapBackHeaderShared } = useContext(ScrollViewContext)
+  const { blur, headerHeight, headerFixed, headerHeightShared, headerOffset, progress, progressing, pullSearchHeightShared, scrollPosition, setHeaderHeight, snapBackHeaderShared } = useContext(ScrollViewContext)
   const { settings } = useContext(ScrollViewSettingsContext)
   const effectiveBackActionFixed = backActionFixed ?? settings.backActionFixed
   const insets = useSafeAreaInsets()
   const theme = useTheme()
   const top = topInset ? insets.top : 0
+  // Tracks "has this header's own onLayout fired yet" as a SharedValue rather than deriving it from
+  // headerHeight (a plain, React-state-backed number) so the worklets below never have to list a
+  // value that flips from null to a real measured number in their dependency arrays — see the
+  // comment on translateStyle/blurStyle/progressStyle for why that recreation was a real crash, not
+  // just a perf concern.
+  const measuredShared = useSharedValue(false)
   const handleLayout = ({
     nativeEvent: {
       layout: { height }
     }
   }: LayoutChangeEvent) => {
+    measuredShared.value = true
     if (headerHeight !== height) setHeaderHeight(height)
   }
   const actionMargin = 4
@@ -61,33 +68,39 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
   // pattern) — used as the blur backdrop's own height for that same pre-measurement window, so it
   // doesn't render as a flat, unblurred box for the ~60-80ms an onLayout round trip takes on web.
   const unmeasuredHeight = top + contentMinHeight
-  // Every one of these worklets reads several SharedValues (scrollPosition, snapBackHeaderShared,
-  // headerOffset, pullSearchHeightShared) whose *mutations* — not just headerFixed/headerHeight
-  // changing — need to re-trigger the style recompute. Reanimated's automatic worklet dependency
-  // capture covers this on native without needing them listed, but not on web, where a SharedValue
-  // has to appear in the array itself (object identity, not .value) for its mutations to be
-  // treated as reactive — omitting them here silently froze the header/blur/progress-bar's scroll
-  // tracking on web at whatever scrollPosition happened to be when headerHeight last changed.
+  // Every one of these worklets reads SharedValues only (scrollPosition, snapBackHeaderShared,
+  // headerOffset, pullSearchHeightShared, headerHeightShared, measuredShared) — deliberately NOT the
+  // plain `headerHeight` context value, even though it holds the same number. `headerHeight` is a
+  // React-state-backed `number | null` that changes identity on every measurement (starting at null,
+  // then flipping to a real pixel value within a frame of mount); putting it in a useAnimatedStyle
+  // dependency array forces Reanimated to tear down and recreate the worklet the moment that happens
+  // — which crashed outright ("[Worklets] Tried to synchronously call a Remote Function") on
+  // react-native-worklets 0.10.1. SharedValues never change identity, only their `.value`, so they're
+  // safe to depend on and don't retrigger this. They still have to be LISTED here despite that: on
+  // web, without the Reanimated Babel plugin's automatic worklet dependency capture, a SharedValue's
+  // mutations aren't picked up as reactive unless its reference appears in this array — omitting one
+  // silently freezes that value's contribution to the header/blur/progress-bar's scroll tracking at
+  // whatever it was when the array last changed.
   const translateStyle = useAnimatedStyle(() => {
     if (headerFixed) return { transform: [{ translateY: 0 }] }
     if (snapBackHeaderShared.value) return { transform: [{ translateY: headerOffset.value }] }
-    const effective = scrollPosition.value + (headerHeight ?? 0) - pullSearchHeightShared.value
+    const effective = scrollPosition.value + headerHeightShared.value - pullSearchHeightShared.value
     if (effective <= 0) return { transform: [{ translateY: 0 }] }
     return { transform: [{ translateY: -effective }] }
-  }, [headerFixed, headerHeight, headerOffset, pullSearchHeightShared, scrollPosition, snapBackHeaderShared])
+  }, [headerFixed, headerHeightShared, headerOffset, pullSearchHeightShared, scrollPosition, snapBackHeaderShared])
   const blurStyle = useAnimatedStyle(() => {
-    if (headerHeight === null) return { height: unmeasuredHeight }
-    if (!headerHeight) return { height: 0 }
-    if (headerFixed) return { height: headerHeight }
-    const translateY = snapBackHeaderShared.value ? headerOffset.value : -Math.max(0, scrollPosition.value + headerHeight - pullSearchHeightShared.value)
-    return { height: Math.max(headerHeight + translateY, top) }
-  }, [headerFixed, headerHeight, top, unmeasuredHeight, headerOffset, pullSearchHeightShared, scrollPosition, snapBackHeaderShared])
+    if (!measuredShared.value) return { height: unmeasuredHeight }
+    if (!headerHeightShared.value) return { height: 0 }
+    if (headerFixed) return { height: headerHeightShared.value }
+    const translateY = snapBackHeaderShared.value ? headerOffset.value : -Math.max(0, scrollPosition.value + headerHeightShared.value - pullSearchHeightShared.value)
+    return { height: Math.max(headerHeightShared.value + translateY, top) }
+  }, [headerFixed, top, unmeasuredHeight, measuredShared, headerHeightShared, headerOffset, pullSearchHeightShared, scrollPosition, snapBackHeaderShared])
   const progressStyle = useAnimatedStyle(() => {
-    const h = headerHeight ?? 0
+    const h = headerHeightShared.value
     if (headerFixed) return { top: h }
     const slide = snapBackHeaderShared.value ? -headerOffset.value : Math.max(0, scrollPosition.value + h - pullSearchHeightShared.value)
     return { top: Math.max(h - slide, top) }
-  }, [headerFixed, headerHeight, top, headerOffset, pullSearchHeightShared, scrollPosition, snapBackHeaderShared])
+  }, [headerFixed, headerHeightShared, top, headerOffset, pullSearchHeightShared, scrollPosition, snapBackHeaderShared])
   const actionTop = top + actionMargin
   const buttonStyle = { borderRadius: actionSize, height: actionSize, margin: 0, width: actionSize }
   const actionShadow = { borderRadius: actionSize / 2, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 2 }

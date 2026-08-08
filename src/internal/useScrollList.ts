@@ -25,7 +25,7 @@ export type UseScrollListOptions = {
 export function useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, hideUntilMeasured, isHorizontal, keyboardAware, pullSearchHeight, style }: UseScrollListOptions = {}) {
   const insets = useSafeAreaInsets()
   const keyboardHeight = useKeyboardInset()
-  const { footerAboveKeyboard, footerHeight, footerFixed: contextFooterFixed, headerHeight, headerFixed: contextHeaderFixed, headerOffset, pullSearchHeightShared, scrollPosition, snapBackHeaderShared, tabBarHeight } = useContext(ScrollViewContext)
+  const { footerAboveKeyboard, footerHeight, footerFixed: contextFooterFixed, headerHeight, headerHeightShared, headerFixed: contextHeaderFixed, headerOffset, pullSearchHeightShared, scrollPosition, snapBackHeaderShared, tabBarHeight } = useContext(ScrollViewContext)
 
   const headerFixed = isHorizontal ? true : (headerFixedProp ?? contextHeaderFixed)
   const footerFixed = isHorizontal ? true : (footerFixedProp ?? contextFooterFixed)
@@ -79,21 +79,25 @@ export function useScrollList({ footerFixed: footerFixedProp, headerFixed: heade
   const contentOffset = usesContentInset ? insetContentOffset : ZERO_OFFSET
 
   const chipHidden = useSharedValue(1)
-  // chipHidden/snapBackHeaderShared/headerOffset/scrollPosition/pullSearchHeightShared all need to
-  // be listed here too, not just read — see ScrollViewHeader's translateStyle for why (web-only
-  // reanimated reactivity gap: a SharedValue's mutations don't retrigger useAnimatedStyle unless
-  // the value itself is in this array).
+  // chipHidden/snapBackHeaderShared/headerOffset/scrollPosition/pullSearchHeightShared/
+  // headerHeightShared all need to be listed here too, not just read — see ScrollViewHeader's
+  // translateStyle for why (web-only reanimated reactivity gap: a SharedValue's mutations don't
+  // retrigger useAnimatedStyle unless the value itself is in this array). headerHeightShared is
+  // used here rather than the plain `headerHeight` context value specifically because the latter
+  // changes identity (null -> a real number) shortly after mount, which forces Reanimated to
+  // recreate this worklet — a crash on react-native-worklets 0.10.1, not just a perf concern. See
+  // ScrollViewHeader's translateStyle/blurStyle/progressStyle for the full explanation.
   const chipStyle = useAnimatedStyle(() => {
     const pointerEvents = chipHidden.value ? ('none' as const) : ('box-none' as const)
     if (isHorizontal) {
       return {
         opacity: chipHidden.value ? withTiming(0) : withTiming(1),
         pointerEvents,
-        top: Math.max(headerHeight ?? 0, insets.top) + 4,
+        top: Math.max(headerHeightShared.value, insets.top) + 4,
         transform: [{ translateX: chipHidden.value ? withTiming(-CHIP_SLIDE) : withTiming(0) }]
       }
     }
-    const h = headerHeight ?? 0
+    const h = headerHeightShared.value
     const slide = headerFixed ? 0 : snapBackHeaderShared.value ? -headerOffset.value : Math.max(0, scrollPosition.value + h - pullSearchHeightShared.value)
     const top = Math.max(h - slide, insets.top) + 4
     return {
@@ -102,7 +106,7 @@ export function useScrollList({ footerFixed: footerFixedProp, headerFixed: heade
       top,
       transform: [{ translateY: chipHidden.value ? withTiming(-CHIP_SLIDE) : withTiming(0) }]
     }
-  }, [isHorizontal, headerFixed, headerHeight, insets.top, chipHidden, snapBackHeaderShared, headerOffset, scrollPosition, pullSearchHeightShared])
+  }, [isHorizontal, headerFixed, headerHeightShared, insets.top, chipHidden, snapBackHeaderShared, headerOffset, scrollPosition, pullSearchHeightShared])
 
   return { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, contentPadding, footerFixed, headerFixed, headerHeight, insets, isHorizontal: isHorizontal ?? false }
 }

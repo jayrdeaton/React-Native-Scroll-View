@@ -3,6 +3,7 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
   roots: ['<rootDir>/src'],
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/.claude/worktrees/'],
   moduleNameMapper: {
     '^react-native$': '<rootDir>/src/__mocks__/react-native.ts',
     '^react-native-reanimated$': '<rootDir>/src/__mocks__/react-native-reanimated.ts',

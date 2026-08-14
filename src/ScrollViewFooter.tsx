@@ -13,12 +13,12 @@ export type ScrollViewFooterProps = {
 }
 
 export const ScrollViewFooter = ({ children, style }: ScrollViewFooterProps) => {
-  const { blur, footerAboveKeyboard, footerHeight, footerFixed, footerOffset, headerHeightShared, pullSearchHeightShared, scrollPosition, setFooterHeight, snapBackFooterShared } = useContext(ScrollViewContext)
+  const { blur, footerAboveKeyboard, footerHeight, footerFixed, footerOffset, headerHeightShared, pullSearchHeightShared, scrollPosition, setFooterHeight, snapBackFooterShared, tabBarHeight } = useContext(ScrollViewContext)
   const insets = useSafeAreaInsets()
   const keyboardHeight = useKeyboardInset()
   useEffect(
     () => () => {
-      setFooterHeight(0)
+      setFooterHeight(null)
     },
     [setFooterHeight]
   )
@@ -38,7 +38,7 @@ export const ScrollViewFooter = ({ children, style }: ScrollViewFooterProps) => 
     if (snapBackFooterShared.value) return { transform: [{ translateY: footerOffset.value }] }
     const effective = scrollPosition.value + headerHeightShared.value - pullSearchHeightShared.value
     if (effective <= 0) return { transform: [{ translateY: 0 }] }
-    return { transform: [{ translateY: Math.min(effective, footerHeight) }] }
+    return { transform: [{ translateY: Math.min(effective, footerHeight ?? 0) }] }
   }, [footerHeight, footerFixed, headerHeightShared, pullSearchHeightShared, scrollPosition, snapBackFooterShared, footerOffset])
   // Floating above the keyboard is done by GROWING this container (via paddingBottom) rather than
   // translating it. Translating the whole bar left its bottom edge — and the BlurView filling it —
@@ -66,14 +66,18 @@ export const ScrollViewFooter = ({ children, style }: ScrollViewFooterProps) => 
   // of dropping past it and correcting back up.
   const rowPaddingBottom = footerFixed && footerAboveKeyboard ? Math.max(insets.bottom - keyboardHeight, 0) : insets.bottom
   return (
-    <Animated.View onLayout={handleLayout} pointerEvents='box-none' style={[styles.footer, { paddingBottom: containerPaddingBottom }, footerStyle]}>
-      {footerHeight > 0 && <BlurView blur={blur} style={StyleSheet.absoluteFill} />}
+    // bottom: tabBarHeight (not the styles.footer default of 0) - a consuming app's own persistent
+    // tab bar (a fixture outside this package's header/footer concepts entirely, same as
+    // useScrollList's content-inset reservation) sits below this at the true screen bottom, so this
+    // bar has to clear it rather than rendering flush against 0 and overlapping/hiding behind it.
+    <Animated.View onLayout={handleLayout} pointerEvents='box-none' style={[styles.footer, { bottom: tabBarHeight, paddingBottom: containerPaddingBottom }, footerStyle]}>
+      {(footerHeight ?? 0) > 0 && <BlurView blur={blur} style={StyleSheet.absoluteFill} />}
       <View style={[styles.row, { paddingBottom: rowPaddingBottom }, style]}>{children}</View>
     </Animated.View>
   )
 }
 
 const styles = StyleSheet.create({
-  footer: { bottom: 0, left: 0, position: 'absolute', right: 0, zIndex: 2 },
+  footer: { left: 0, position: 'absolute', right: 0, zIndex: 2 },
   row: { alignItems: 'center', flexDirection: 'row', zIndex: 1 }
 })

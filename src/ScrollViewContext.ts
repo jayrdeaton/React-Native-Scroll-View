@@ -4,7 +4,7 @@ import { SharedValue } from 'react-native-reanimated'
 export type ScrollViewContextType = {
   blur: boolean
   footerAboveKeyboard: boolean
-  footerHeight: number
+  footerHeight: number | null
   footerHeightShared: SharedValue<number>
   footerFixed: boolean
   footerOffset: SharedValue<number>
@@ -28,7 +28,7 @@ export type ScrollViewContextType = {
   progressing: boolean
   scrollHeight: number
   scrollPosition: SharedValue<number>
-  setFooterHeight: (h: number) => void
+  setFooterHeight: (h: number | null) => void
   setHeaderHeight: (h: number | null) => void
   setProgress: (p: number | null) => void
   setProgressing: (b: boolean) => void
@@ -38,7 +38,7 @@ export type ScrollViewContextType = {
 export const ScrollViewContext = createContext<ScrollViewContextType>({
   blur: true,
   footerAboveKeyboard: false,
-  footerHeight: 0,
+  footerHeight: null,
   footerHeightShared: null as unknown as SharedValue<number>,
   footerFixed: false,
   footerOffset: null as unknown as SharedValue<number>,

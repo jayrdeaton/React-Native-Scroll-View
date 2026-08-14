@@ -26,7 +26,7 @@ export const ScrollViewProvider = ({ blur, children, fixed = false, footerAboveK
   const effectiveSnapBackHeader = snapBackHeader ?? settings.snapBackHeader
   const effectiveSnapBackFooter = snapBackFooter ?? settings.snapBackFooter
   const [headerHeight, setHeaderHeightState] = useState<number | null>(null)
-  const [footerHeight, setFooterHeightState] = useState(0)
+  const [footerHeight, setFooterHeightState] = useState<number | null>(null)
   const [progress, setProgress] = useState<number | null>(null)
   const [progressing, setProgressing] = useState(false)
   const scrollPosition = useSharedValue(0)
@@ -71,13 +71,20 @@ export const ScrollViewProvider = ({ blur, children, fixed = false, footerAboveK
     return () => clearTimeout(timeout)
   }, [headerHeight])
   const setFooterHeight = useCallback(
-    (h: number) => {
+    (h: number | null) => {
+      // Same race setHeaderHeight guards against, on the footer side: react-native-screens' web
+      // shim (and a footer's own unmount cleanup below, which now passes null instead of 0 for
+      // exactly this reason) can report/force a spurious 0 while a real footer is effectively
+      // still on screen (e.g. a wizard cycling through several <ScrollViewFooter> instances).
+      // Never let that clobber a known height — only an explicit null (genuinely no footer
+      // mounted) may reset it.
+      if (h === 0 && footerHeight) return
       setFooterHeightState(h)
-      footerHeightShared.value = h
+      footerHeightShared.value = h ?? 0
     },
-    [footerHeightShared]
+    [footerHeight, footerHeightShared]
   )
-  const scrollHeight = useMemo(() => Dimensions.get('window').height - (headerHeight ?? 0) - footerHeight, [headerHeight, footerHeight])
+  const scrollHeight = useMemo(() => Dimensions.get('window').height - (headerHeight ?? 0) - (footerHeight ?? 0), [headerHeight, footerHeight])
   const effectiveHeaderFixed = fixed || (headerFixed ?? settings.headerFixed)
   const effectiveFooterFixed = fixed || (footerFixed ?? settings.footerFixed)
   const value = useMemo(() => ({ blur: effectiveBlur, footerAboveKeyboard, footerHeight, footerHeightShared, footerFixed: effectiveFooterFixed, footerOffset, headerHeight, headerHeightShared, headerFixed: effectiveHeaderFixed, headerOffset, jsListGeneration, listGeneration, onJsListUnmount, onListUnmount, progress, pullSearchHeightShared, progressing, scrollHeight, scrollPosition, setFooterHeight, setHeaderHeight, setProgress, setProgressing, snapBackFooterShared, snapBackHeaderShared, tabBarHeight }), [effectiveBlur, footerAboveKeyboard, effectiveFooterFixed, effectiveHeaderFixed, footerHeight, footerHeightShared, footerOffset, headerHeight, headerHeightShared, headerOffset, jsListGeneration, listGeneration, onJsListUnmount, onListUnmount, progress, pullSearchHeightShared, progressing, scrollHeight, scrollPosition, setFooterHeight, setHeaderHeight, snapBackFooterShared, snapBackHeaderShared, tabBarHeight])

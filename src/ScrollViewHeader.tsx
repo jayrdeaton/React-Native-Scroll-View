@@ -11,7 +11,14 @@ import { ScrollViewSettingsContext } from './ScrollViewSettingsContext'
 export type ScrollViewHeaderProps = {
   actionSize?: number
   actionStyle?: ViewStyle
-  backAction?: () => void
+  // A plain callback renders the default Appbar.BackAction (themed onSurface, sized/positioned by
+  // actionSize/iconSize below) — the common case, unchanged from before. Passing a ReactNode
+  // instead skips that default entirely and renders the given element in its place, same escape
+  // hatch trailingAction already gave the other corner: a caller that wants its own color, icon,
+  // or component altogether (a colored IconButton, say) isn't stuck fighting Appbar.BackAction's
+  // own fixed color/no-customization API to get it. backActionAccessibilityLabel/iconSize below
+  // only apply to the default-rendered case — a custom element carries its own.
+  backAction?: (() => void) | ReactNode
   backActionAccessibilityLabel?: string
   backActionFixed?: boolean
   caption?: string
@@ -147,12 +154,12 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
         (effectiveBackActionFixed ? (
           <Animated.View style={leadingStyle}>
             <ActionBg blur={blur} style={actionStyle} />
-            <Appbar.BackAction accessibilityLabel={backActionAccessibilityLabel} onPress={backAction} size={iconSize ?? actionSize / 2} style={buttonStyle} />
+            {typeof backAction === 'function' ? <Appbar.BackAction accessibilityLabel={backActionAccessibilityLabel} onPress={backAction} size={iconSize ?? actionSize / 2} style={buttonStyle} /> : backAction}
           </Animated.View>
         ) : (
           <Animated.View style={[leadingStyle, translateStyle]}>
             <ActionBg blur={blur} style={actionStyle} />
-            <Appbar.BackAction accessibilityLabel={backActionAccessibilityLabel} onPress={backAction} size={iconSize ?? actionSize / 2} style={buttonStyle} />
+            {typeof backAction === 'function' ? <Appbar.BackAction accessibilityLabel={backActionAccessibilityLabel} onPress={backAction} size={iconSize ?? actionSize / 2} style={buttonStyle} /> : backAction}
           </Animated.View>
         ))}
       {trailingAction &&

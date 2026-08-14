@@ -5,6 +5,7 @@ const stub = ({ children }: { children?: React.ReactNode }) => children ?? null
 export const ProgressBar = jest.fn(() => null)
 export const Surface = jest.fn(stub)
 export const Chip = jest.fn(stub)
+export const Icon = jest.fn(() => null)
 
 // Forwards a fresh spy-able {blur, focus} stub to whatever ref the consumer passes (PullSearch's
 // own inputRef), instead of dropping it — the real Searchbar forwards to a native TextInput the
@@ -29,6 +30,7 @@ export const useTheme = () => ({
   colors: {
     primary: '#6200ee',
     surface: '#ffffff',
+    onSecondaryContainer: '#1d192b',
     onSurface: '#000000',
     onSurfaceVariant: '#49454f',
     outlineVariant: '#cac4d0'

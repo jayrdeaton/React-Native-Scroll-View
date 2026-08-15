@@ -75,6 +75,12 @@ export const ScrollViewFooter = ({ children, style }: ScrollViewFooterProps) => 
   // padding's growth cancel out exactly, so the content holds still at the safe-area line instead
   // of dropping past it and correcting back up.
   const rowPaddingBottom = footerFixed && footerAboveKeyboard ? Math.max(insets.bottom - keyboardHeight, 0) : insets.bottom
+  // A consumer's own `style.paddingBottom` (e.g. tightening the row's vertical rhythm to match a
+  // header's actionMargin) is spread after rowPaddingBottom below, so it has to be added to it
+  // rather than assigned after it — plain style-array merge would otherwise let it silently
+  // replace the safe-area clearance instead of sitting on top of it, leaving the row's real
+  // content (buttons, etc.) flush against the home indicator.
+  const { paddingBottom: consumerPaddingBottom, ...restStyle } = style ?? {}
   return (
     // bottom: tabBarHeight (not the styles.footer default of 0) - a consuming app's own persistent
     // tab bar (a fixture outside this package's header/footer concepts entirely, same as
@@ -82,7 +88,7 @@ export const ScrollViewFooter = ({ children, style }: ScrollViewFooterProps) => 
     // bar has to clear it rather than rendering flush against 0 and overlapping/hiding behind it.
     <Animated.View onLayout={handleLayout} pointerEvents='box-none' style={[styles.footer, { bottom: tabBarHeight, paddingBottom: containerPaddingBottom }, footerStyle]}>
       {(footerHeight ?? 0) > 0 && <BlurView blur={blur} style={StyleSheet.absoluteFill} />}
-      <View style={[styles.row, { paddingBottom: rowPaddingBottom }, style]}>{children}</View>
+      <View style={[styles.row, restStyle, { paddingBottom: rowPaddingBottom + (typeof consumerPaddingBottom === 'number' ? consumerPaddingBottom : 0) }]}>{children}</View>
     </Animated.View>
   )
 }

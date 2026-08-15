@@ -26,11 +26,11 @@ const buildContextValue = (overrides: Partial<ScrollViewContextType> = {}): Scro
     ...overrides
   }) as unknown as ScrollViewContextType
 
-const renderFooter = (overrides: Partial<ScrollViewContextType>) => {
+const renderFooter = (overrides: Partial<ScrollViewContextType>, style?: React.ComponentProps<typeof ScrollViewFooter>['style']) => {
   const contextValue = buildContextValue(overrides)
   return render(
     <ScrollViewContext.Provider value={contextValue}>
-      <ScrollViewFooter />
+      <ScrollViewFooter style={style} />
     </ScrollViewContext.Provider>
   )
 }
@@ -84,6 +84,24 @@ describe('ScrollViewFooter safe-area padding', () => {
     renderFooter({ footerAboveKeyboard: true, footerFixed: false })
     openKeyboard(KEYBOARD_HEIGHT)
     expect(lastRowPaddingBottom()).toBe(SAFE_AREA_BOTTOM)
+  })
+
+  // Regression test: a consumer's own style.paddingBottom (e.g. a small gap matching the header's
+  // actionMargin) used to be spread after the computed safe-area padding, silently replacing it —
+  // consuming apps that set their own vertical rhythm padding lost the home-indicator clearance
+  // entirely. It must add on top of the inset instead.
+  it("adds a consumer style's paddingBottom on top of the safe-area inset instead of replacing it", () => {
+    renderFooter({ footerAboveKeyboard: true, footerFixed: true }, { paddingBottom: 4 })
+    expect(lastRowPaddingBottom()).toBe(SAFE_AREA_BOTTOM + 4)
+  })
+
+  it('still applies the rest of a consumer style (e.g. paddingHorizontal) unchanged', () => {
+    renderFooter({ footerAboveKeyboard: true, footerFixed: true }, { paddingBottom: 4, paddingHorizontal: 16 })
+    const calls = (View as unknown as jest.Mock).mock.calls
+    const rowCall = calls[calls.length - 1]
+    const styleArray = Array.isArray(rowCall[0].style) ? rowCall[0].style : [rowCall[0].style]
+    const horizontalEntry = styleArray.find((entry: unknown) => entry !== null && typeof entry === 'object' && 'paddingHorizontal' in (entry as object))
+    expect((horizontalEntry as { paddingHorizontal: number }).paddingHorizontal).toBe(16)
   })
 
   // Regression test for the "drops to the bottom then snaps back up" glitch: padding must ramp

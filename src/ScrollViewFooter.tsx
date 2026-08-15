@@ -1,5 +1,5 @@
 import { BlurView } from '@rific/auto-paper'
-import { type ReactNode, useContext, useEffect } from 'react'
+import { type ReactNode, useContext, useEffect, useRef } from 'react'
 import { type LayoutChangeEvent, StyleSheet, View, type ViewStyle } from 'react-native'
 import Animated, { useAnimatedStyle } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -16,11 +16,21 @@ export const ScrollViewFooter = ({ children, style }: ScrollViewFooterProps) => 
   const { blur, footerAboveKeyboard, footerHeight, footerFixed, footerOffset, headerHeightShared, pullSearchHeightShared, scrollPosition, setFooterHeight, snapBackFooterShared, tabBarHeight } = useContext(ScrollViewContext)
   const insets = useSafeAreaInsets()
   const keyboardHeight = useKeyboardInset()
+  // setFooterHeight's own identity changes on every real measurement (ScrollViewProvider's
+  // useCallback closes over `footerHeight` itself, so setting it recreates the callback). Depending
+  // on it directly here re-ran this effect on every measurement too — tearing down the PREVIOUS
+  // closure as a "cleanup" and calling ITS setFooterHeight(null) right after the real height had
+  // just been set, permanently clobbering it back to null with no further layout event left to
+  // recover it (the DOM node's true size never changed, so onLayout never fires again). Reading
+  // through a ref sidesteps that: the effect itself only ever runs once, on mount/unmount, so its
+  // cleanup fires exactly when it's meant to (a real unmount) rather than after every measurement.
+  const setFooterHeightRef = useRef(setFooterHeight)
+  setFooterHeightRef.current = setFooterHeight
   useEffect(
     () => () => {
-      setFooterHeight(null)
+      setFooterHeightRef.current(null)
     },
-    [setFooterHeight]
+    []
   )
   const handleLayout = ({
     nativeEvent: {

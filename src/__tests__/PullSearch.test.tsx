@@ -22,10 +22,7 @@ describe('PullSearch', () => {
   })
 
   it('renders with placeholder', () => {
-    render(
-      <PullSearch onChangeText={jest.fn()} onHeightChange={jest.fn()} placeholder='Search items...' />,
-      { wrapper }
-    )
+    render(<PullSearch onChangeText={jest.fn()} onHeightChange={jest.fn()} placeholder='Search items...' />, { wrapper })
   })
 
   it('renders with initial value', () => {

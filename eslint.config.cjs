@@ -4,9 +4,6 @@ const base = require('@infinitetoken/eslint-config/react-native')
 module.exports = defineConfig([
   ...base,
   {
-    ignores: ['**/*.cjs', '.yalc/**', 'src/__mocks__/**', 'src/__tests__/**', '.claude/worktrees/**']
-  },
-  {
     rules: {
       // Only the two rules that apply cleanly to a plain (non-React-Compiler) reanimated
       // codebase — the plugin's other "recommended" rules (immutability/purity/set-state-in-*/

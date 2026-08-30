@@ -1,6 +1,6 @@
+import { Chip } from '@rific/auto-paper'
 import { render } from '@testing-library/react'
 import React from 'react'
-import { Chip } from '@rific/auto-paper'
 import { Icon } from 'react-native-paper'
 
 import { ScrollViewChip } from '../internal/ScrollViewChip'
@@ -14,20 +14,20 @@ describe('ScrollViewChip', () => {
     mockIcon.mockClear()
   })
 
-  it('renders the chevron as a custom avatar Icon, not Chip\'s own `icon` prop', () => {
+  it("renders the chevron as a custom avatar Icon, not Chip's own `icon` prop", () => {
     render(<ScrollViewChip onPress={() => {}} style={{}} />)
     const props = mockChip.mock.calls[0][0]
     expect(props.icon).toBeUndefined()
     expect(React.isValidElement(props.avatar)).toBe(true)
   })
 
-  it('defaults the avatar icon color to onSecondaryContainer (matching Chip\'s own default label color) when no selectedColor is given', () => {
+  it("defaults the avatar icon color to onSecondaryContainer (matching Chip's own default label color) when no selectedColor is given", () => {
     render(<ScrollViewChip onPress={() => {}} style={{}} />)
     const avatar = mockChip.mock.calls[0][0].avatar as React.ReactElement<{ color?: string }>
     expect(avatar.props.color).toBe('#1d192b')
   })
 
-  it('falls back to onSurfaceVariant when mode is outlined, matching Chip\'s own outlined text color', () => {
+  it("falls back to onSurfaceVariant when mode is outlined, matching Chip's own outlined text color", () => {
     render(<ScrollViewChip onPress={() => {}} style={{}} chipProps={{ mode: 'outlined' }} />)
     const avatar = mockChip.mock.calls[0][0].avatar as React.ReactElement<{ color?: string }>
     expect(avatar.props.color).toBe('#49454f')

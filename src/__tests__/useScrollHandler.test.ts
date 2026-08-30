@@ -2,10 +2,19 @@ import { renderHook } from '@testing-library/react'
 import React from 'react'
 import type { SharedValue } from 'react-native-reanimated'
 
-import { useScrollHandlerJS } from '../internal/useScrollHandlerJS'
+import { useScrollHandler } from '../internal/useScrollHandler'
 import { ScrollViewContext, type ScrollViewContextType } from '../ScrollViewContext'
 
-const REMOUNT_RETRY_MAX_ATTEMPTS = 8
+// The real reanimated types describe useAnimatedScrollHandler's return value as an opaque
+// ScrollHandlerProcessed with no callable surface — the mock's actual runtime shape (a callable
+// dispatch function with the handler map's worklets attached as properties, see
+// src/__mocks__/react-native-reanimated.ts) has to be asserted explicitly.
+type MockedScrollHandler = ((event: ReturnType<typeof scrollEvent>) => void) & {
+  onBeginDrag: () => void
+  onEndDrag: (event: ReturnType<typeof scrollEvent>) => void
+  onMomentumEnd: () => void
+  onScroll: (event: ReturnType<typeof scrollEvent>) => void
+}
 
 const buildContextValue = (overrides: Record<string, unknown> = {}): ScrollViewContextType =>
   ({
@@ -20,130 +29,123 @@ const buildContextValue = (overrides: Record<string, unknown> = {}): ScrollViewC
     ...overrides
   }) as unknown as ScrollViewContextType
 
-const scrollEvent = (y: number, { contentHeight = 1000, layoutHeight = 500, x = 0 }: { contentHeight?: number; layoutHeight?: number; x?: number } = {}) =>
-  ({
-    nativeEvent: {
-      contentOffset: { x, y },
-      contentSize: { height: contentHeight, width: 0 },
-      layoutMeasurement: { height: layoutHeight, width: 0 }
-    }
-  }) as never
+// onScroll/onEndDrag receive the raw event directly on the UI thread — unlike the JS-thread twin
+// (useScrollHandlerJS), there's no `.nativeEvent` wrapper.
+const scrollEvent = (x: number, y: number, contentHeight = 1000, layoutHeight = 500) => ({
+  contentOffset: { x, y },
+  contentSize: { height: contentHeight, width: 0 },
+  layoutMeasurement: { height: layoutHeight, width: 0 }
+})
 
-const renderScrollHandlerJS = (overrides: Partial<Parameters<typeof useScrollHandlerJS>[0]> = {}, contextOverrides: Record<string, unknown> = {}) => {
+const renderScrollHandler = (overrides: Partial<Parameters<typeof useScrollHandler>[0]> = {}, contextOverrides: Record<string, unknown> = {}) => {
   const contextValue = buildContextValue(contextOverrides)
+  const capturedGeneration = { value: 0 } as unknown as SharedValue<number>
+  const listGeneration = { value: 0 } as unknown as SharedValue<number>
   const chipHidden = { value: 0 } as unknown as SharedValue<number>
-  const capturedGeneration = { current: 0 }
-  const jsListGeneration = { current: 0 }
-  const scrollTo = jest.fn()
   const wrapper = ({ children }: { children: React.ReactNode }) => React.createElement(ScrollViewContext.Provider, { value: contextValue }, children)
   const rendered = renderHook(
     () =>
-      useScrollHandlerJS({
+      useScrollHandler({
         capturedGeneration,
         chipHidden,
         footerFixed: false,
         headerFixed: false,
-        jsListGeneration,
-        scrollTo,
+        listGeneration,
         ...overrides
-      }),
+      }) as unknown as MockedScrollHandler,
     { wrapper }
   )
-  return { ...rendered, capturedGeneration, chipHidden, contextValue, jsListGeneration, scrollTo }
+  return { ...rendered, capturedGeneration, chipHidden, contextValue, listGeneration }
 }
 
-describe('useScrollHandlerJS generation guard', () => {
-  it('processes onScroll and updates scrollPosition/chipHidden when the generation matches', () => {
-    const { result, contextValue, chipHidden } = renderScrollHandlerJS({ chipThreshold: 100 })
-    result.current.onScroll(scrollEvent(50))
-    expect(contextValue.scrollPosition.value).toBe(50)
-    expect(chipHidden.value).toBe(1) // below threshold
+describe('useScrollHandler generation guard', () => {
+  it('drops onScroll once listGeneration no longer matches the captured generation', () => {
+    const { result, contextValue, listGeneration } = renderScrollHandler()
+    listGeneration.value = 1 // a fresher instance mounted elsewhere and bumped the shared counter
+    result.current.onScroll(scrollEvent(0, 500))
+    expect(contextValue.scrollPosition.value).toBe(0) // stale event ignored entirely
+  })
 
-    result.current.onScroll(scrollEvent(150))
+  it('processes onScroll normally once the generation matches', () => {
+    const { result, contextValue, chipHidden } = renderScrollHandler()
+    result.current.onScroll(scrollEvent(0, 50))
+    expect(contextValue.scrollPosition.value).toBe(50)
+    expect(chipHidden.value).toBe(1) // below the default 100 threshold
+
+    result.current.onScroll(scrollEvent(0, 150))
     expect(contextValue.scrollPosition.value).toBe(150)
     expect(chipHidden.value).toBe(0) // at/above threshold
   })
+})
 
-  it('drops onScroll from a zombie handler once jsListGeneration no longer matches its capturedGeneration', () => {
-    const { result, contextValue, capturedGeneration, jsListGeneration } = renderScrollHandlerJS()
-    result.current.onScroll(scrollEvent(10))
-    expect(contextValue.scrollPosition.value).toBe(10)
+describe('useScrollHandler remount sync', () => {
+  it('retries via runOnJS while the reported position is still far from the target, without touching scroll state', () => {
+    const onRemountSyncRetry = jest.fn()
+    const onRemountSynced = jest.fn()
+    const remountSyncTarget = { value: 50 } as unknown as SharedValue<number | null>
+    const { result, contextValue, chipHidden } = renderScrollHandler({ onRemountSyncRetry, onRemountSynced, remountSyncTarget })
 
-    // Another list instance mounted/unmounted elsewhere and bumped the shared generation counter —
-    // this handler's own capturedGeneration (frozen at mount) is now stale.
-    jsListGeneration.current = 1
-    expect(capturedGeneration.current).toBe(0)
+    result.current.onScroll(scrollEvent(0, 0))
 
-    result.current.onScroll(scrollEvent(999))
-    expect(contextValue.scrollPosition.value).toBe(10) // unchanged — the stale event was ignored
+    expect(onRemountSyncRetry).toHaveBeenCalledWith(0)
+    expect(onRemountSynced).not.toHaveBeenCalled()
+    expect(remountSyncTarget.value).toBe(50) // not cleared — still syncing
+    expect(contextValue.scrollPosition.value).toBe(0) // untouched
+    expect(chipHidden.value).toBe(0) // untouched — rest of onScroll never ran
   })
 
-  it('lets a fresh instance keep working even while a stale sibling is guarded out', () => {
-    const jsListGeneration = { current: 1 }
-    const { result, contextValue } = renderScrollHandlerJS({ capturedGeneration: { current: 1 }, jsListGeneration })
-    result.current.onScroll(scrollEvent(42))
-    expect(contextValue.scrollPosition.value).toBe(42)
+  it('clears the target and reports success once within tolerance, then resumes normal processing', () => {
+    const onRemountSyncRetry = jest.fn()
+    const onRemountSynced = jest.fn()
+    const remountSyncTarget = { value: 50 } as unknown as SharedValue<number | null>
+    const { result, contextValue } = renderScrollHandler({ onRemountSyncRetry, onRemountSynced, remountSyncTarget })
+
+    result.current.onScroll(scrollEvent(0, 50)) // exact match, well within REMOUNT_SYNC_TOLERANCE
+
+    expect(remountSyncTarget.value).toBeNull()
+    expect(onRemountSynced).toHaveBeenCalledWith(50)
+    expect(onRemountSyncRetry).not.toHaveBeenCalled()
+    expect(contextValue.scrollPosition.value).toBe(0) // still untouched on this same call
+
+    // A later call, with the target now cleared, falls through to ordinary scroll handling.
+    result.current.onScroll(scrollEvent(0, 99))
+    expect(contextValue.scrollPosition.value).toBe(99)
+  })
+
+  it('does not throw when no remount callbacks are supplied', () => {
+    const remountSyncTarget = { value: 50 } as unknown as SharedValue<number | null>
+    const { result } = renderScrollHandler({ remountSyncTarget })
+    expect(() => result.current.onScroll(scrollEvent(0, 0))).not.toThrow()
+    expect(() => result.current.onScroll(scrollEvent(0, 50))).not.toThrow()
+    expect(remountSyncTarget.value).toBeNull()
   })
 })
 
-describe('useScrollHandlerJS remount retry', () => {
-  it('retries with a non-animated scrollTo until an onScroll event confirms the target position', () => {
-    const { result, scrollTo, contextValue } = renderScrollHandlerJS({ remountTarget: -40 })
-    result.current.onScroll(scrollEvent(0)) // native reports the wrong position
-    expect(scrollTo).toHaveBeenCalledWith(-40, false)
-    expect(contextValue.scrollPosition.value).toBe(0) // not yet treated as a real scroll position
-
-    scrollTo.mockClear()
-    result.current.onScroll(scrollEvent(-40)) // confirmed
-    expect(scrollTo).not.toHaveBeenCalled()
-    expect(contextValue.scrollPosition.value).toBe(-40) // now processed normally
-  })
-
-  it('gives up after REMOUNT_RETRY_MAX_ATTEMPTS and falls through to normal processing rather than blocking forever', () => {
-    const { result, scrollTo, contextValue } = renderScrollHandlerJS({ remountTarget: -40 })
-    for (let i = 0; i < REMOUNT_RETRY_MAX_ATTEMPTS; i += 1) result.current.onScroll(scrollEvent(0))
-    expect(scrollTo).toHaveBeenCalledTimes(REMOUNT_RETRY_MAX_ATTEMPTS)
-
-    scrollTo.mockClear()
-    result.current.onScroll(scrollEvent(0)) // one more, past the max — gives up
-    expect(scrollTo).not.toHaveBeenCalled()
-    expect(contextValue.scrollPosition.value).toBe(0) // accepted as-is instead of retrying forever
-  })
-
-  it('the generation guard takes precedence over an in-progress remount retry', () => {
-    const { result, scrollTo, contextValue, jsListGeneration } = renderScrollHandlerJS({ remountTarget: -40 })
-    jsListGeneration.current = 1 // stale before the remount retry ever gets a chance to run
-    result.current.onScroll(scrollEvent(0))
-    expect(scrollTo).not.toHaveBeenCalled()
-    expect(contextValue.scrollPosition.value).toBe(0) // untouched — onScroll bailed out immediately
-  })
-})
-
-describe('useScrollHandlerJS isHorizontal mode', () => {
+describe('useScrollHandler horizontal mode', () => {
   it('tracks x instead of y and skips snap-back logic entirely', () => {
-    const { result, contextValue } = renderScrollHandlerJS({ chipThreshold: 50, isHorizontal: true }, { headerOffset: { value: -40 }, footerOffset: { value: 25 }, snapBackFooterShared: { value: true }, snapBackHeaderShared: { value: true } })
+    const { result, contextValue } = renderScrollHandler({ chipThreshold: 50, isHorizontal: true }, { headerOffset: { value: -40 }, footerOffset: { value: 25 }, snapBackFooterShared: { value: true }, snapBackHeaderShared: { value: true } })
 
-    result.current.onScroll(scrollEvent(9999, { x: 30, contentHeight: 9999, layoutHeight: 1 })) // huge y — would trigger bounce/snap in vertical mode
+    result.current.onScroll(scrollEvent(30, 9999, 9999, 1)) // huge y — would trigger bounce/snap in vertical mode
     expect(contextValue.scrollPosition.value).toBe(30) // x, not y
     expect(contextValue.headerOffset.value).toBe(-40) // untouched
     expect(contextValue.footerOffset.value).toBe(25) // untouched
 
-    result.current.onScroll(scrollEvent(0, { x: 80 }))
+    result.current.onScroll(scrollEvent(80, 0))
     expect(contextValue.scrollPosition.value).toBe(80)
   })
 
   it('gates chipHidden on the x threshold', () => {
-    const { result, chipHidden } = renderScrollHandlerJS({ chipThreshold: 50, isHorizontal: true })
-    result.current.onScroll(scrollEvent(0, { x: 30 }))
+    const { result, chipHidden } = renderScrollHandler({ chipThreshold: 50, isHorizontal: true })
+    result.current.onScroll(scrollEvent(30, 0))
     expect(chipHidden.value).toBe(1)
-    result.current.onScroll(scrollEvent(0, { x: 80 }))
+    result.current.onScroll(scrollEvent(80, 0))
     expect(chipHidden.value).toBe(0)
   })
 })
 
-describe('useScrollHandlerJS bottom bounce', () => {
+describe('useScrollHandler bottom bounce', () => {
   it('suppresses snap-up accumulation while overscrolled at the bottom, then resumes once genuinely scrolled back', () => {
-    const { result, contextValue } = renderScrollHandlerJS(
+    const { result, contextValue } = renderScrollHandler(
       {},
       {
         headerHeightShared: { value: 100 },
@@ -158,21 +160,21 @@ describe('useScrollHandlerJS bottom bounce', () => {
 
     // contentHeight 1000, layoutHeight 500 → maxScroll 500. y=580 is still within the bounce zone;
     // scrolling up (delta<0) here would otherwise start accumulating toward the snap-up trigger.
-    result.current.onScroll(scrollEvent(580, { contentHeight: 1000, layoutHeight: 500 }))
+    result.current.onScroll(scrollEvent(0, 580, 1000, 500))
     expect(contextValue.headerOffset.value).toBe(-30) // unchanged — accumulation was suppressed
     expect(contextValue.footerOffset.value).toBe(15)
 
     // Now genuinely below maxScroll: the bounce clears and accumulation resumes from a clean 0,
     // driven entirely by this call's own (large) upward delta.
-    result.current.onScroll(scrollEvent(400, { contentHeight: 1000, layoutHeight: 500 }))
+    result.current.onScroll(scrollEvent(0, 400, 1000, 500))
     expect(contextValue.headerOffset.value).toBe(0) // snapped via withTiming(0, ...)
     expect(contextValue.footerOffset.value).toBe(0)
   })
 })
 
-describe('useScrollHandlerJS snap-back at rest', () => {
+describe('useScrollHandler snap-back at rest', () => {
   it('resets both offsets to zero when both header and footer are free to snap', () => {
-    const { result, contextValue } = renderScrollHandlerJS(
+    const { result, contextValue } = renderScrollHandler(
       {},
       {
         headerHeightShared: { value: 100 },
@@ -182,13 +184,13 @@ describe('useScrollHandlerJS snap-back at rest', () => {
         snapBackHeaderShared: { value: true }
       }
     )
-    result.current.onScroll(scrollEvent(-100, { contentHeight: 500, layoutHeight: 500 })) // yn === -headerHeightShared.value
+    result.current.onScroll(scrollEvent(0, -100, 500, 500)) // yn === -headerHeightShared.value
     expect(contextValue.headerOffset.value).toBe(0)
     expect(contextValue.footerOffset.value).toBe(0)
   })
 
   it('only snaps the header when the footer is fixed, even though snapBackFooterShared is true', () => {
-    const { result, contextValue } = renderScrollHandlerJS(
+    const { result, contextValue } = renderScrollHandler(
       { footerFixed: true },
       {
         headerHeightShared: { value: 100 },
@@ -198,13 +200,13 @@ describe('useScrollHandlerJS snap-back at rest', () => {
         snapBackHeaderShared: { value: true }
       }
     )
-    result.current.onScroll(scrollEvent(-100, { contentHeight: 500, layoutHeight: 500 }))
+    result.current.onScroll(scrollEvent(0, -100, 500, 500))
     expect(contextValue.headerOffset.value).toBe(0)
     expect(contextValue.footerOffset.value).toBe(25) // unchanged — footer is fixed
   })
 
   it('only snaps the footer when the header is fixed, even though snapBackHeaderShared is true', () => {
-    const { result, contextValue } = renderScrollHandlerJS(
+    const { result, contextValue } = renderScrollHandler(
       { headerFixed: true },
       {
         headerHeightShared: { value: 100 },
@@ -214,13 +216,13 @@ describe('useScrollHandlerJS snap-back at rest', () => {
         snapBackHeaderShared: { value: true }
       }
     )
-    result.current.onScroll(scrollEvent(-100, { contentHeight: 500, layoutHeight: 500 }))
+    result.current.onScroll(scrollEvent(0, -100, 500, 500))
     expect(contextValue.headerOffset.value).toBe(-40) // unchanged — header is fixed
     expect(contextValue.footerOffset.value).toBe(0)
   })
 
   it('skips the whole snap-back block when both header and footer are fixed', () => {
-    const { result, contextValue } = renderScrollHandlerJS(
+    const { result, contextValue } = renderScrollHandler(
       { footerFixed: true, headerFixed: true },
       {
         headerHeightShared: { value: 100 },
@@ -230,15 +232,15 @@ describe('useScrollHandlerJS snap-back at rest', () => {
         snapBackHeaderShared: { value: true }
       }
     )
-    result.current.onScroll(scrollEvent(-100, { contentHeight: 500, layoutHeight: 500 }))
+    result.current.onScroll(scrollEvent(0, -100, 500, 500))
     expect(contextValue.headerOffset.value).toBe(-40)
     expect(contextValue.footerOffset.value).toBe(25)
   })
 })
 
-describe('useScrollHandlerJS snap-back clamping while scrolling down', () => {
+describe('useScrollHandler snap-back clamping while scrolling down', () => {
   it('clamps header/footer offsets toward their rest bounds once past the pull-search zone', () => {
-    const { result, contextValue } = renderScrollHandlerJS(
+    const { result, contextValue } = renderScrollHandler(
       {},
       {
         headerHeightShared: { value: 100 },
@@ -251,17 +253,17 @@ describe('useScrollHandlerJS snap-back clamping while scrolling down', () => {
     )
 
     // threshold = -headerHeightShared + pullSearchHeightShared = -80
-    result.current.onScroll(scrollEvent(-80, { contentHeight: 500, layoutHeight: 500 })) // delta = -80 - (-100) = 20
+    result.current.onScroll(scrollEvent(0, -80, 500, 500)) // delta = -80 - (-100) = 20
     expect(contextValue.headerOffset.value).toBe(-20) // max(-100, min(0, 0 - 20))
     expect(contextValue.footerOffset.value).toBe(20) // max(0, min(50, 0 + 20))
 
-    result.current.onScroll(scrollEvent(500, { contentHeight: 500, layoutHeight: 500 })) // delta = 580, well past both bounds
+    result.current.onScroll(scrollEvent(0, 500, 500, 500)) // delta = 580, well past both bounds
     expect(contextValue.headerOffset.value).toBe(-100) // clamped at the floor
     expect(contextValue.footerOffset.value).toBe(50) // clamped at the ceiling
   })
 
   it('does not clamp while still below the pull-search threshold, even with a positive delta', () => {
-    const { result, contextValue } = renderScrollHandlerJS(
+    const { result, contextValue } = renderScrollHandler(
       {},
       {
         headerHeightShared: { value: 100 },
@@ -273,13 +275,13 @@ describe('useScrollHandlerJS snap-back clamping while scrolling down', () => {
       }
     )
     // yn = -90 is below the -80 threshold even though delta (-90 - -95 = 5) is positive
-    result.current.onScroll(scrollEvent(-90, { contentHeight: 500, layoutHeight: 500 }))
+    result.current.onScroll(scrollEvent(0, -90, 500, 500))
     expect(contextValue.headerOffset.value).toBe(0) // untouched
     expect(contextValue.footerOffset.value).toBe(0)
   })
 
   it('clamps only the header when the footer is fixed', () => {
-    const { result, contextValue } = renderScrollHandlerJS(
+    const { result, contextValue } = renderScrollHandler(
       { footerFixed: true },
       {
         headerHeightShared: { value: 100 },
@@ -291,13 +293,13 @@ describe('useScrollHandlerJS snap-back clamping while scrolling down', () => {
         snapBackHeaderShared: { value: true }
       }
     )
-    result.current.onScroll(scrollEvent(-80, { contentHeight: 500, layoutHeight: 500 })) // delta = 20, at the pull-search threshold
+    result.current.onScroll(scrollEvent(0, -80, 500, 500)) // delta = 20, at the pull-search threshold
     expect(contextValue.headerOffset.value).toBe(-20) // max(-100, min(0, 0 - 20))
     expect(contextValue.footerOffset.value).toBe(25) // unchanged — footer is fixed
   })
 
   it('clamps only the footer when the header is fixed', () => {
-    const { result, contextValue } = renderScrollHandlerJS(
+    const { result, contextValue } = renderScrollHandler(
       { headerFixed: true },
       {
         headerHeightShared: { value: 100 },
@@ -309,15 +311,15 @@ describe('useScrollHandlerJS snap-back clamping while scrolling down', () => {
         snapBackHeaderShared: { value: true }
       }
     )
-    result.current.onScroll(scrollEvent(-80, { contentHeight: 500, layoutHeight: 500 })) // delta = 20
+    result.current.onScroll(scrollEvent(0, -80, 500, 500)) // delta = 20
     expect(contextValue.headerOffset.value).toBe(-40) // unchanged — header is fixed
     expect(contextValue.footerOffset.value).toBe(20) // max(0, min(50, 0 + 20))
   })
 })
 
-describe('useScrollHandlerJS snap-up accumulation while scrolling up', () => {
+describe('useScrollHandler snap-up accumulation while scrolling up', () => {
   it('does not accumulate while still below the pull-search threshold', () => {
-    const { result, contextValue } = renderScrollHandlerJS(
+    const { result, contextValue } = renderScrollHandler(
       {},
       {
         headerHeightShared: { value: 100 },
@@ -332,14 +334,14 @@ describe('useScrollHandlerJS snap-up accumulation while scrolling up', () => {
     // Each of these lands below the -50 threshold, so the accumulator never even starts moving —
     // if it did, two -20 deltas would total 40 and still fall short of 10 anyway, so a snap here
     // can only mean the gate failed to hold accumulation back at all.
-    result.current.onScroll(scrollEvent(-60, { contentHeight: 500, layoutHeight: 500 })) // delta -20
-    result.current.onScroll(scrollEvent(-80, { contentHeight: 500, layoutHeight: 500 })) // delta -20
+    result.current.onScroll(scrollEvent(0, -60, 500, 500)) // delta -20
+    result.current.onScroll(scrollEvent(0, -80, 500, 500)) // delta -20
     expect(contextValue.headerOffset.value).toBe(-30)
     expect(contextValue.footerOffset.value).toBe(15)
   })
 
   it('snaps only the header via withTiming when the footer is fixed', () => {
-    const { result, contextValue } = renderScrollHandlerJS(
+    const { result, contextValue } = renderScrollHandler(
       { footerFixed: true },
       {
         headerHeightShared: { value: 100 },
@@ -350,14 +352,14 @@ describe('useScrollHandlerJS snap-up accumulation while scrolling up', () => {
         snapBackHeaderShared: { value: true }
       }
     )
-    result.current.onScroll(scrollEvent(94, { contentHeight: 500, layoutHeight: 500 })) // accum 6
-    result.current.onScroll(scrollEvent(79, { contentHeight: 500, layoutHeight: 500 })) // accum 6 + 15 = 21
+    result.current.onScroll(scrollEvent(0, 94, 500, 500)) // accum 6
+    result.current.onScroll(scrollEvent(0, 79, 500, 500)) // accum 6 + 15 = 21
     expect(contextValue.headerOffset.value).toBe(0)
     expect(contextValue.footerOffset.value).toBe(15) // unchanged — footer is fixed
   })
 
   it('snaps only the footer via withTiming when the header is fixed', () => {
-    const { result, contextValue } = renderScrollHandlerJS(
+    const { result, contextValue } = renderScrollHandler(
       { headerFixed: true },
       {
         headerHeightShared: { value: 100 },
@@ -368,16 +370,16 @@ describe('useScrollHandlerJS snap-up accumulation while scrolling up', () => {
         snapBackHeaderShared: { value: true }
       }
     )
-    result.current.onScroll(scrollEvent(94, { contentHeight: 500, layoutHeight: 500 })) // accum 6
-    result.current.onScroll(scrollEvent(79, { contentHeight: 500, layoutHeight: 500 })) // accum 6 + 15 = 21
+    result.current.onScroll(scrollEvent(0, 94, 500, 500)) // accum 6
+    result.current.onScroll(scrollEvent(0, 79, 500, 500)) // accum 6 + 15 = 21
     expect(contextValue.headerOffset.value).toBe(-30) // unchanged — header is fixed
     expect(contextValue.footerOffset.value).toBe(0)
   })
 })
 
-describe('useScrollHandlerJS onScrollBeginDrag', () => {
+describe('useScrollHandler onBeginDrag', () => {
   it('resets the snap-up accumulator so a drag interrupts an in-progress accumulation', () => {
-    const { result, contextValue } = renderScrollHandlerJS(
+    const { result, contextValue } = renderScrollHandler(
       {},
       {
         headerHeightShared: { value: 100 },
@@ -389,26 +391,26 @@ describe('useScrollHandlerJS onScrollBeginDrag', () => {
       }
     )
 
-    result.current.onScroll(scrollEvent(94, { contentHeight: 500, layoutHeight: 500 })) // delta -6 → accum 6, below threshold
+    result.current.onScroll(scrollEvent(0, 94, 500, 500)) // delta -6 → accum 6, below threshold
     expect(contextValue.headerOffset.value).toBe(-30)
 
-    result.current.onScrollBeginDrag(scrollEvent(0))
+    result.current.onBeginDrag()
 
     // Without the reset, this delta (-4) would bring the running total to 6 + 4 = 10 and snap.
     // With the reset it only reaches 4, so nothing fires yet.
-    result.current.onScroll(scrollEvent(90, { contentHeight: 500, layoutHeight: 500 })) // delta -4
+    result.current.onScroll(scrollEvent(0, 90, 500, 500)) // delta -4
     expect(contextValue.headerOffset.value).toBe(-30) // still untouched
     expect(contextValue.footerOffset.value).toBe(15)
 
-    result.current.onScroll(scrollEvent(79, { contentHeight: 500, layoutHeight: 500 })) // delta -11 → 4 + 11 = 15, crosses 10
+    result.current.onScroll(scrollEvent(0, 79, 500, 500)) // delta -11 → 4 + 11 = 15, crosses 10
     expect(contextValue.headerOffset.value).toBe(0)
     expect(contextValue.footerOffset.value).toBe(0)
   })
 })
 
-describe('useScrollHandlerJS onMomentumScrollEnd', () => {
-  it('resets the snap-up accumulator the same way onScrollBeginDrag does', () => {
-    const { result, contextValue } = renderScrollHandlerJS(
+describe('useScrollHandler onMomentumEnd', () => {
+  it('resets the snap-up accumulator the same way onBeginDrag does', () => {
+    const { result, contextValue } = renderScrollHandler(
       {},
       {
         headerHeightShared: { value: 100 },
@@ -420,25 +422,25 @@ describe('useScrollHandlerJS onMomentumScrollEnd', () => {
       }
     )
 
-    result.current.onScroll(scrollEvent(94, { contentHeight: 500, layoutHeight: 500 })) // accum 6
-    result.current.onMomentumScrollEnd(scrollEvent(0))
-    result.current.onScroll(scrollEvent(90, { contentHeight: 500, layoutHeight: 500 })) // would-be accum 10, actually reset then 4
+    result.current.onScroll(scrollEvent(0, 94, 500, 500)) // accum 6
+    result.current.onMomentumEnd()
+    result.current.onScroll(scrollEvent(0, 90, 500, 500)) // would-be accum 10, actually reset then 4
     expect(contextValue.headerOffset.value).toBe(-30)
 
-    result.current.onScroll(scrollEvent(79, { contentHeight: 500, layoutHeight: 500 })) // 4 + 11 = 15
+    result.current.onScroll(scrollEvent(0, 79, 500, 500)) // 4 + 11 = 15
     expect(contextValue.headerOffset.value).toBe(0)
     expect(contextValue.footerOffset.value).toBe(0)
   })
 })
 
-describe('useScrollHandlerJS onScrollEndDrag', () => {
+describe('useScrollHandler onEndDrag', () => {
   it('returns immediately in horizontal mode without throwing', () => {
-    const { result } = renderScrollHandlerJS({ isHorizontal: true })
-    expect(() => result.current.onScrollEndDrag(scrollEvent(495, { contentHeight: 1000, layoutHeight: 500 }))).not.toThrow()
+    const { result } = renderScrollHandler({ isHorizontal: true })
+    expect(() => result.current.onEndDrag(scrollEvent(0, 495, 1000, 500))).not.toThrow()
   })
 
-  it('resets the snap-up accumulator near the bottom, the same way onScrollBeginDrag does', () => {
-    const { result, contextValue } = renderScrollHandlerJS(
+  it('resets the snap-up accumulator near the bottom, the same way onBeginDrag does', () => {
+    const { result, contextValue } = renderScrollHandler(
       {},
       {
         headerHeightShared: { value: 100 },
@@ -450,21 +452,21 @@ describe('useScrollHandlerJS onScrollEndDrag', () => {
       }
     )
 
-    result.current.onScroll(scrollEvent(94, { contentHeight: 500, layoutHeight: 500 })) // accum 6
+    result.current.onScroll(scrollEvent(0, 94, 500, 500)) // accum 6
 
     // contentHeight 1000, layoutHeight 500 → threshold is 1000 - 500 - 10 = 490; 495 clears it.
-    result.current.onScrollEndDrag(scrollEvent(495, { contentHeight: 1000, layoutHeight: 500 }))
+    result.current.onEndDrag(scrollEvent(0, 495, 1000, 500))
 
-    result.current.onScroll(scrollEvent(90, { contentHeight: 500, layoutHeight: 500 })) // would-be accum 10, actually reset then 4
+    result.current.onScroll(scrollEvent(0, 90, 500, 500)) // would-be accum 10, actually reset then 4
     expect(contextValue.headerOffset.value).toBe(-30)
 
-    result.current.onScroll(scrollEvent(79, { contentHeight: 500, layoutHeight: 500 })) // 4 + 11 = 15
+    result.current.onScroll(scrollEvent(0, 79, 500, 500)) // 4 + 11 = 15
     expect(contextValue.headerOffset.value).toBe(0)
     expect(contextValue.footerOffset.value).toBe(0)
   })
 
   it('does not reset the accumulator when nowhere near the bottom', () => {
-    const { result, contextValue } = renderScrollHandlerJS(
+    const { result, contextValue } = renderScrollHandler(
       {},
       {
         headerHeightShared: { value: 100 },
@@ -476,11 +478,11 @@ describe('useScrollHandlerJS onScrollEndDrag', () => {
       }
     )
 
-    result.current.onScroll(scrollEvent(94, { contentHeight: 500, layoutHeight: 500 })) // accum 6
-    result.current.onScrollEndDrag(scrollEvent(200, { contentHeight: 1000, layoutHeight: 500 })) // well clear of the bottom — no reset
+    result.current.onScroll(scrollEvent(0, 94, 500, 500)) // accum 6
+    result.current.onEndDrag(scrollEvent(0, 200, 1000, 500)) // well clear of the bottom — no reset
 
     // No reset happened, so this delta (-4) pushes the running total from 6 to 10 and snaps right away.
-    result.current.onScroll(scrollEvent(90, { contentHeight: 500, layoutHeight: 500 }))
+    result.current.onScroll(scrollEvent(0, 90, 500, 500))
     expect(contextValue.headerOffset.value).toBe(0)
     expect(contextValue.footerOffset.value).toBe(0)
   })

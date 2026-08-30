@@ -77,6 +77,7 @@ export const PullSearch = forwardRef<PullSearchHandle, PullSearchProps>(function
       return () => clearTimeout(timeout)
     }
     onChangeText(normalizedValue)
+    return undefined
   }, [debounce, onChangeText, value])
 
   // Fade out as the bar scrolls up into the header blur region.

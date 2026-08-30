@@ -24,7 +24,11 @@ describe('ScrollViewProvider', () => {
     let capturedValue: ReturnType<typeof useScrollView> | undefined
     render(
       <ScrollViewProvider>
-        <ContextReader onRead={(v) => { capturedValue = v }} />
+        <ContextReader
+          onRead={(v) => {
+            capturedValue = v
+          }}
+        />
       </ScrollViewProvider>
     )
     expect(capturedValue?.progress).toBeNull()
@@ -51,13 +55,23 @@ describe('ScrollViewProvider', () => {
     let capturedValue: ReturnType<typeof useScrollView> | undefined
     const { rerender } = render(
       <ScrollViewProvider>
-        <ContextReader onRead={(v) => { capturedValue = v }} />
+        <ContextReader
+          onRead={(v) => {
+            capturedValue = v
+          }}
+        />
       </ScrollViewProvider>
     )
-    act(() => { capturedValue?.setProgress(0.5) })
+    act(() => {
+      capturedValue?.setProgress(0.5)
+    })
     rerender(
       <ScrollViewProvider>
-        <ContextReader onRead={(v) => { capturedValue = v }} />
+        <ContextReader
+          onRead={(v) => {
+            capturedValue = v
+          }}
+        />
       </ScrollViewProvider>
     )
     expect(capturedValue?.progress).toBe(0.5)

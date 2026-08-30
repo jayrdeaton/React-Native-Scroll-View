@@ -2,8 +2,8 @@ import { act, renderHook } from '@testing-library/react'
 import React from 'react'
 import { useKeyboardHandler } from 'react-native-keyboard-controller'
 
-import { ScrollViewContext, type ScrollViewContextType } from '../ScrollViewContext'
 import { useScrollList } from '../internal/useScrollList'
+import { ScrollViewContext, type ScrollViewContextType } from '../ScrollViewContext'
 
 const FOOTER_HEIGHT = 60
 const KEYBOARD_HEIGHT = 300

@@ -26,10 +26,7 @@ describe('FlatList', () => {
   })
 
   it('renders with data items', () => {
-    render(
-      <FlatList data={['a', 'b', 'c']} renderItem={({ item }) => <>{item}</>} keyExtractor={(item) => item} />,
-      { wrapper }
-    )
+    render(<FlatList data={['a', 'b', 'c']} renderItem={({ item }) => <>{item}</>} keyExtractor={(item) => item} />, { wrapper })
   })
 
   it('renders horizontal', () => {
@@ -37,16 +34,7 @@ describe('FlatList', () => {
   })
 
   it('renders horizontal paged list with HorizontalDots for multiple items', () => {
-    render(
-      <FlatList
-        data={['a', 'b', 'c']}
-        renderItem={({ item }) => <>{item}</>}
-        keyExtractor={(item) => item}
-        horizontal
-        pagingEnabled
-      />,
-      { wrapper }
-    )
+    render(<FlatList data={['a', 'b', 'c']} renderItem={({ item }) => <>{item}</>} keyExtractor={(item) => item} horizontal pagingEnabled />, { wrapper })
   })
 
   it('renders with pullSearchHeight', () => {
@@ -54,10 +42,7 @@ describe('FlatList', () => {
   })
 
   it('renders with renderFilters', () => {
-    render(
-      <FlatList data={[]} renderItem={() => null} renderFilters={<></>} />,
-      { wrapper }
-    )
+    render(<FlatList data={[]} renderItem={() => null} renderFilters={<></>} />, { wrapper })
   })
 
   it('renders with keyboardAware', () => {
@@ -98,15 +83,7 @@ describe('FlatList numColumns row-chunking', () => {
   })
 
   it('row renderItem renders every item in the row via the original renderItem', () => {
-    render(
-      <FlatList
-        data={['fig', 'kiwi', 'plum']}
-        renderItem={({ item }) => <>{item}</>}
-        keyExtractor={(item) => item}
-        numColumns={2}
-      />,
-      { wrapper }
-    )
+    render(<FlatList data={['fig', 'kiwi', 'plum']} renderItem={({ item }) => <>{item}</>} keyExtractor={(item) => item} numColumns={2} />, { wrapper })
     const rowRenderItem = lastCallProps()?.renderItem
     const { container } = render(rowRenderItem?.({ index: 0, item: ['fig', 'kiwi'], separators: {} as never }) as React.ReactElement)
     expect(container.textContent).toContain('fig')

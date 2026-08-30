@@ -5,7 +5,7 @@ const stub = ({ children }: { children?: React.ReactNode }) => children ?? null
 // Real Reanimated shared values persist their `.value` across re-renders (like useRef) — the
 // `init` argument is only honored on the first call. A naive `{ value: init }` per render would
 // silently discard mutations made during a previous render every time the owning component re-renders.
-export const useSharedValue = <T,>(init: T) => {
+export const useSharedValue = <T>(init: T) => {
   const ref = React.useRef<{ value: T } | null>(null)
   if (!ref.current) ref.current = { value: init }
   return ref.current
@@ -13,7 +13,7 @@ export const useSharedValue = <T,>(init: T) => {
 
 // Reanimated's useAnimatedRef returns a stable callable that also exposes `.current`, so
 // consumers can either pass it directly as a `ref` prop or read/assign `.current` imperatively.
-export const useAnimatedRef = <T,>() => {
+export const useAnimatedRef = <T>() => {
   const holder = React.useRef<((node: T | null) => void) & { current: T | null }>(undefined as unknown as ((node: T | null) => void) & { current: T | null })
   if (!holder.current) {
     let current: T | null = null
@@ -42,13 +42,22 @@ export const useAnimatedRef = <T,>() => {
 // `additionalHooks` lint rule is for) — it catches wrong *logic* inside the factory.
 export const useAnimatedStyle = (factory: () => object, _deps?: unknown[]) => factory()
 export const useAnimatedProps = (factory: () => object, _deps?: unknown[]) => factory()
-export const useAnimatedScrollHandler = (_handler: unknown) => jest.fn()
+// Real reanimated returns a single callable that native scroll events are routed through — it's
+// what call sites pass as the `onScroll` prop (see ScrollView/SectionList/CustomList), so this mock
+// must itself be typeof 'function' rather than the raw handler map. Calling it directly invokes
+// onScroll (its most common use); the other worklets (onBeginDrag/onEndDrag/onMomentumEnd) are
+// attached as properties of that same function so a test can still call them individually, the same
+// way useScrollHandlerJS.test.ts drives its plain-JS twin's separate callbacks.
+export const useAnimatedScrollHandler = <T extends Record<string, (...args: never[]) => void>>(handler: T, _deps?: unknown[]) => {
+  const dispatch = ((...args: Parameters<T['onScroll']>) => handler.onScroll?.(...args)) as ((...args: Parameters<T['onScroll']>) => void) & T
+  return Object.assign(dispatch, handler)
+}
 // Same "always fresh" simplification as useAnimatedStyle above, adapted to useAnimatedReaction's
 // three-argument (prepare, reaction, deps) shape: call `prepare` and invoke `reaction` with the
 // previous call's result every time this hook itself is invoked (i.e. on every render), letting
 // the real component's own `curr !== prev` guard (present at every call site in this package)
 // decide whether to act. `prev` is `null` on the very first call, matching real reanimated.
-export const useAnimatedReaction = <T,>(prepare: () => T, reaction: (curr: T, prev: T | null) => void, _deps?: unknown[]) => {
+export const useAnimatedReaction = <T>(prepare: () => T, reaction: (curr: T, prev: T | null) => void, _deps?: unknown[]) => {
   const prevRef = React.useRef<{ value: T } | null>(null)
   const curr = prepare()
   reaction(curr, prevRef.current ? prevRef.current.value : null)
@@ -125,7 +134,7 @@ export const createAnimatedComponent = (C: React.ComponentType) => C
 const Animated = {
   View: jest.fn(stub),
   Text: stub,
-  ScrollView: stub,
+  ScrollView: jest.fn(stub),
   FlatList: stub,
   createAnimatedComponent
 }

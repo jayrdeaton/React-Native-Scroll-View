@@ -150,6 +150,7 @@ Drop-in for React Native's `FlatList`. Accepts all `FlatListProps<T>` plus:
 | `onRefresh` | `() => Promise<void> \| void` | Enables pull-to-refresh |
 | `pullSearchHeight` | `number` | Reserve space above content for `PullSearch` |
 | `ref` | `RefObject<RNFlatList>` | Forward ref to the underlying list |
+| `refreshing` | `boolean` | Controlled refreshing state |
 | `renderFilters` | `ReactNode` | Rendered below `ListHeaderComponent`, above list items |
 
 Performance props are user-overridable with sensible defaults:
@@ -194,6 +195,7 @@ import { CustomList } from '@rific/scroll-view'
 | `keyboardAware` | `boolean` | Add keyboard height to bottom content inset |
 | `onRefresh` | `() => Promise<void> \| void` | Enables pull-to-refresh |
 | `pullSearchHeight` | `number` | Reserve space above content for `PullSearch` |
+| `refreshing` | `boolean` | Controlled refreshing state |
 | `renderFilters` | `ReactNode` | Rendered below `ListHeaderComponent`, above list items |
 | `scrollRef` | `RefObject<{ scrollToOffset }>` | Forward ref to the underlying list |
 

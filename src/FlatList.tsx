@@ -25,9 +25,10 @@ export type FlatListProps<T> = Omit<RNFlatListProps<T>, 'onRefresh' | 'refreshin
   onScrollEndDrag?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   pullSearchHeight?: number
   ref?: RefObject<RNFlatList | null>
+  refreshing?: boolean
 }
 
-const FlatListInner = <T,>({ chipProps, chipThreshold, columnWrapperStyle, contentContainerStyle: externalContentContainerStyle, data, initialNumToRender = 20, keyExtractor, maxToRenderPerBatch = 50, numColumns, renderFilters, renderItem, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, horizontal, keyboardAware, ListHeaderComponent: externalListHeaderComponent, onChipPress, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pagingEnabled, pullSearchHeight, removeClippedSubviews = false, showsHorizontalScrollIndicator, showsVerticalScrollIndicator, style, onContentSizeChange, ref: externalRef, windowSize = 100, ...props }: FlatListProps<T>) => {
+const FlatListInner = <T,>({ chipProps, chipThreshold, columnWrapperStyle, contentContainerStyle: externalContentContainerStyle, data, initialNumToRender = 20, keyExtractor, maxToRenderPerBatch = 50, numColumns, renderFilters, renderItem, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, horizontal, keyboardAware, ListHeaderComponent: externalListHeaderComponent, onChipPress, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pagingEnabled, pullSearchHeight, refreshing, removeClippedSubviews = false, showsHorizontalScrollIndicator, showsVerticalScrollIndicator, style, onContentSizeChange, ref: externalRef, windowSize = 100, ...props }: FlatListProps<T>) => {
   // Plain (non-Animated) FlatList: react-native-reanimated's Animated.FlatList does not reliably
   // honor the initial `contentOffset` prop on a key-forced remount — the header/list can briefly
   // render at the wrong position. A plain FlatList honors it correctly, so scroll position is driven
@@ -164,7 +165,7 @@ const FlatListInner = <T,>({ chipProps, chipThreshold, columnWrapperStyle, conte
     [onContentSizeChange]
   )
 
-  const refreshControl = useMemo(() => <RefreshControl />, [])
+  const refreshControl = useMemo(() => (onRefresh ? <RefreshControl onRefresh={onRefresh} refreshing={refreshing ?? false} /> : <RefreshControl />), [onRefresh, refreshing])
   const nativeGesture = useMemo(() => Gesture.Native(), [])
   const combinedGesture = useMemo(() => (gesture !== undefined ? Gesture.Simultaneous(gesture, nativeGesture) : nativeGesture), [gesture, nativeGesture])
   const detectorGesture = gesture !== undefined ? combinedGesture : undefined

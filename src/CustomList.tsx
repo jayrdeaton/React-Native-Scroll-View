@@ -27,11 +27,12 @@ export type CustomListProps<P extends object> = Omit<P, 'contentInset' | 'conten
   onScrollBeginDrag?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   onScrollEndDrag?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void
   pullSearchHeight?: number
+  refreshing?: boolean
   scrollRef?: RefObject<ScrollToOffsetRef | null>
   style?: StyleProp<ViewStyle>
 }
 
-const CustomListInner = <P extends object>({ chipProps, chipThreshold, component: List, renderFilters, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, keyboardAware, onChipPress, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, scrollRef, style, ...props }: CustomListProps<P>) => {
+const CustomListInner = <P extends object>({ chipProps, chipThreshold, component: List, renderFilters, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, keyboardAware, onChipPress, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pullSearchHeight, refreshing, scrollRef, style, ...props }: CustomListProps<P>) => {
   // Intercept ListHeaderComponent so useScrollInit can apply the same 2-phase measurement as FlatList.
   const { ListHeaderComponent: listHeaderComponent, contentContainerStyle: externalContentContainerStyle, ...restProps } = props as Record<string, unknown>
 
@@ -123,7 +124,7 @@ const CustomListInner = <P extends object>({ chipProps, chipThreshold, component
     scrollViewInternal.current?.scrollToOffset({ offset, animated: true })
   }, [contentInset.top, pullSearchHeight])
 
-  const refreshControl = useMemo(() => <RefreshControl />, [])
+  const refreshControl = useMemo(() => (onRefresh ? <RefreshControl onRefresh={onRefresh} refreshing={refreshing ?? false} /> : <RefreshControl />), [onRefresh, refreshing])
   const nativeGesture = useMemo(() => Gesture.Native(), [])
   const combinedGesture = useMemo(() => (gesture !== undefined ? Gesture.Simultaneous(gesture, nativeGesture) : nativeGesture), [gesture, nativeGesture])
   const detectorGesture = gesture !== undefined ? combinedGesture : undefined

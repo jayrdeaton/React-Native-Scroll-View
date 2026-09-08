@@ -180,11 +180,11 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
 
 const styles = StyleSheet.create({
   actionBg: { borderRadius: 100, overflow: 'hidden' },
-  divider: { bottom: 0, height: StyleSheet.hairlineWidth, left: 0, position: 'absolute', right: 0 },
-  caption: { fontSize: 12, fontWeight: '400', textAlign: 'center' },
-  content: { alignItems: 'center', flexDirection: 'row', width: '100%' },
   blur: { left: 0, overflow: 'hidden', position: 'absolute', right: 0, top: 0, zIndex: 2 },
   blurInner: { left: 0, position: 'absolute', right: 0, top: 0 },
+  caption: { fontSize: 12, fontWeight: '400', textAlign: 'center' },
+  content: { alignItems: 'center', flexDirection: 'row', width: '100%' },
+  divider: { bottom: 0, height: StyleSheet.hairlineWidth, left: 0, position: 'absolute', right: 0 },
   header: { left: 0, overflow: 'hidden', position: 'absolute', right: 0, top: 0, zIndex: 2 },
   headerInit: { left: 0, overflow: 'hidden', right: 0, zIndex: 2 },
   progress: { left: 0, position: 'absolute', right: 0, zIndex: 3 },

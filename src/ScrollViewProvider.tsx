@@ -1,6 +1,6 @@
 import { useBlur } from '@rific/auto-paper'
 import { type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { Dimensions } from 'react-native'
+import { Dimensions, Platform } from 'react-native'
 import { useSharedValue } from 'react-native-reanimated'
 
 import { ScrollViewContext } from './ScrollViewContext'
@@ -70,6 +70,25 @@ export const ScrollViewProvider = ({ blur, children, fixed = false, footerAboveK
     }, 3000)
     return () => clearTimeout(timeout)
   }, [headerHeight])
+  // Web-only recovery for a real race: a header's ResizeObserver-backed onLayout can simply never
+  // fire on the very first mount through Expo Router (observed in practice, not just theorized —
+  // content stuck at opacity: 0 indefinitely, with no error, only escaping via an unrelated resize
+  // forcing a fresh layout pass). Native RN doesn't have this race — onLayout is reliable there, and
+  // a persistently-null headerHeight really does mean "no header was ever rendered," which the
+  // warning above should keep flagging. On web, give a real first layout two frames to arrive before
+  // assuming there isn't one; setHeaderHeight(0) is exactly what a genuinely header-less screen would
+  // report anyway, so this is indistinguishable from that case once it fires.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || headerHeight !== null) return
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setHeaderHeight(0))
+    })
+    return () => {
+      cancelAnimationFrame(raf1)
+      cancelAnimationFrame(raf2)
+    }
+  }, [headerHeight, setHeaderHeight])
   const setFooterHeight = useCallback(
     (h: number | null) => {
       // Same race setHeaderHeight guards against, on the footer side: react-native-screens' web

@@ -69,6 +69,10 @@ src/
   __tests__/                         - 13 files, one per suite (see Testing)
 ```
 
+### The web opacity-0 race `ScrollViewProvider` guards against
+
+Fixed 2026-09-11. On web, a `<ScrollViewHeader>`'s `onLayout` can simply never fire on the very first mount through Expo Router, leaving `headerHeight` stuck at `null` forever — confirmed live, this was making Hangman's entire UI stay at `opacity: 0` indefinitely with no error. `ScrollViewProvider.tsx` now has a `Platform.OS === 'web'`-gated effect that falls back to `setHeaderHeight(0)` two animation frames after mount if `headerHeight` is still `null` by then, which is indistinguishable from what a genuinely header-less screen would report anyway. Native isn't affected (`onLayout` is reliable there), and the pre-existing `__DEV__` console warning still fires for the case that's an actual bug (no `<ScrollViewHeader>` ever rendered) — see the comment on the effect itself in `ScrollViewProvider.tsx` for the full reasoning. Same race category as `@tastic/core`'s `useSettledWindowDimensions`/`useSettledLayout` (see `../React-Native-Game-Core/.claude/CLAUDE.md`'s "web canvas-sizing race" section) — a first-mount measurement that never arrives on web — just a different package and a different symptom (stuck-null header height vs. a blank Skia canvas).
+
 ## Public API
 
 From `src/index.ts` (single entry point, no subpath exports):

@@ -1,5 +1,3 @@
-import { useContext } from 'react'
+import { scrollViewUseSettings } from './ScrollViewSettingsContext'
 
-import { ScrollViewSettingsContext } from './ScrollViewSettingsContext'
-
-export const useScrollViewSettings = () => useContext(ScrollViewSettingsContext)
+export const useScrollViewSettings = scrollViewUseSettings

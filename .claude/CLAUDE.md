@@ -64,7 +64,7 @@ src/
     RefreshControl.tsx                - thin wrapper defaulting refreshing=false
     FAB.tsx                           - thin wrapper around @rific/auto-paper's FAB; no current importers or exports — IDEAS.md names it as the planned SearchButton trigger
   redux/
-    scrollViewSlice.ts                - hand-rolled Redux slice (no @reduxjs/toolkit dependency) mirroring ScrollViewSettings; works with RTK, vanilla Redux, or no Redux
+    scrollViewSlice.ts                - thin binding over @rific/core's createSettingsSlice('scrollView', {initialState: defaultScrollViewSettings, fieldSetters: []}) factory - no @reduxjs/toolkit dependency, works with RTK, vanilla Redux, or no Redux. Corrected 2026-09-18: this used to be a hand-rolled reducer/actions pair; it was migrated onto the shared factory in an earlier pass but this doc was never updated to match - see @rific/core's own CLAUDE.md for the factory itself
   __mocks__/                         - 7 jest mocks: react-native, react-native-reanimated, react-native-gesture-handler, react-native-keyboard-controller, react-native-safe-area-context, react-native-paper, auto-paper
   __tests__/                         - 13 files, one per suite (see Testing)
 ```
@@ -72,6 +72,10 @@ src/
 ### The web opacity-0 race `ScrollViewProvider` guards against
 
 Fixed 2026-09-11. On web, a `<ScrollViewHeader>`'s `onLayout` can simply never fire on the very first mount through Expo Router, leaving `headerHeight` stuck at `null` forever — confirmed live, this was making Hangman's entire UI stay at `opacity: 0` indefinitely with no error. `ScrollViewProvider.tsx` now has a `Platform.OS === 'web'`-gated effect that falls back to `setHeaderHeight(0)` two animation frames after mount if `headerHeight` is still `null` by then, which is indistinguishable from what a genuinely header-less screen would report anyway. Native isn't affected (`onLayout` is reliable there), and the pre-existing `__DEV__` console warning still fires for the case that's an actual bug (no `<ScrollViewHeader>` ever rendered) — see the comment on the effect itself in `ScrollViewProvider.tsx` for the full reasoning. Same race category as `@tastic/core`'s `useSettledWindowDimensions`/`useSettledLayout` (see `../React-Native-Game-Core/.claude/CLAUDE.md`'s "web canvas-sizing race" section) — a first-mount measurement that never arrives on web — just a different package and a different symptom (stuck-null header height vs. a blank Skia canvas).
+
+## Bug fixes (2026-09-18)
+
+**`ScrollViewFooter.tsx` mirrored `setFooterHeight` into a ref with a bare render-time assignment (`setFooterHeightRef.current = setFooterHeight`) instead of the fleet's established `useEffect(() => { ref.current = value })` idiom — found in a fleet-wide drift scan.** This package's own `eslint.config.cjs` has `react-hooks/refs` turned off entirely (not re-enabled as part of this fix — a separate, bigger decision), which is why lint never caught it here despite catching the same pattern everywhere else in the fleet. Fixed by wrapping the mirror in a no-deps `useEffect`, matching the adjacent unmount-cleanup effect's own shape in the same file. The existing comment explaining *why* a ref is used at all (avoiding a stale-closure teardown bug — see that comment for the full story) was left intact; only *how* the ref gets mirrored changed. Now `0.8.1` (patch, no API change).
 
 ## Public API
 

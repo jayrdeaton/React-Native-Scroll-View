@@ -24,8 +24,13 @@ export const ScrollViewFooter = ({ children, style }: ScrollViewFooterProps) => 
   // recover it (the DOM node's true size never changed, so onLayout never fires again). Reading
   // through a ref sidesteps that: the effect itself only ever runs once, on mount/unmount, so its
   // cleanup fires exactly when it's meant to (a real unmount) rather than after every measurement.
+  // The mirror below has to be effect-based too, not a bare render-time assignment: writing to the
+  // ref during render is a React-render-purity violation (render can be discarded/replayed), so it's
+  // done in its own no-deps effect, which still re-runs on every commit and keeps the ref current.
   const setFooterHeightRef = useRef(setFooterHeight)
-  setFooterHeightRef.current = setFooterHeight
+  useEffect(() => {
+    setFooterHeightRef.current = setFooterHeight
+  })
   useEffect(
     () => () => {
       setFooterHeightRef.current(null)

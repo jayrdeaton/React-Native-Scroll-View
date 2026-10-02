@@ -4,6 +4,7 @@ import { runOnJS, useAnimatedScrollHandler, useSharedValue, withTiming } from 'r
 
 import { ScrollViewContext } from '../ScrollViewContext'
 import { REMOUNT_SYNC_TOLERANCE } from '../useScrollInit'
+import { chromeSettleTarget, chromeTravel } from './chrome'
 import { usesContentInset } from './insetMode'
 
 type UseScrollHandlerOptions = {
@@ -20,7 +21,7 @@ type UseScrollHandlerOptions = {
 }
 
 export function useScrollHandler({ capturedGeneration, chipHidden, chipThreshold = 100, footerFixed, headerFixed, isHorizontal, listGeneration, onRemountSyncRetry, onRemountSynced, remountSyncTarget }: UseScrollHandlerOptions) {
-  const { footerHeightShared, footerOffset, headerHeightShared, headerOffset, pullSearchHeightShared, scrollPosition, snapBackFooterShared, snapBackHeaderShared } = useContext(ScrollViewContext)
+  const { chromeHosted, chromeWritable, footerOffset, headerHeightShared, headerOffset, pullSearchHeightShared, scrollPosition, snapBackFooterShared, snapBackHeaderShared, stackHeightShared } = useContext(ScrollViewContext)
   const snapUpAccum = useSharedValue(0)
   const fromBottomBounce = useSharedValue(false)
 
@@ -58,7 +59,12 @@ export function useScrollHandler({ capturedGeneration, chipHidden, chipThreshold
           fromBottomBounce.value = false
         }
         const snapHeader = snapBackHeaderShared.value && !headerFixed
-        const snapFooter = snapBackFooterShared.value && !footerFixed
+        // A hosted footer is one half of a stack that has to slide its full hide distance to clear
+        // the screen; a list that can't scroll that far (short content) would strand the stack half
+        // hidden with no way to finish the job, so it never starts hiding in the first place.
+        const hideable = !chromeHosted || chromeTravel(maxScroll, headerHeightShared.value) >= stackHeightShared.value
+        if (chromeHosted && !hideable && chromeWritable.value && footerOffset.value !== 0) footerOffset.value = 0
+        const snapFooter = snapBackFooterShared.value && !footerFixed && chromeWritable.value && hideable
         if (snapHeader || snapFooter) {
           if (yn <= -headerHeightShared.value) {
             snapUpAccum.value = 0
@@ -68,7 +74,7 @@ export function useScrollHandler({ capturedGeneration, chipHidden, chipThreshold
             snapUpAccum.value = 0
             if (yn >= -headerHeightShared.value + pullSearchHeightShared.value) {
               if (snapHeader) headerOffset.value = Math.max(-headerHeightShared.value, Math.min(0, headerOffset.value - delta))
-              if (snapFooter) footerOffset.value = Math.max(0, Math.min(footerHeightShared.value, footerOffset.value + delta))
+              if (snapFooter) footerOffset.value = Math.max(0, Math.min(stackHeightShared.value, footerOffset.value + delta))
             }
           } else if (delta < 0 && !fromBottomBounce.value) {
             if (yn >= -headerHeightShared.value + pullSearchHeightShared.value) snapUpAccum.value -= delta
@@ -85,20 +91,35 @@ export function useScrollHandler({ capturedGeneration, chipHidden, chipThreshold
         fromBottomBounce.value = false
         snapUpAccum.value = 0
       },
-      onEndDrag: ({ contentOffset: { y }, contentSize: { height: contentHeight }, layoutMeasurement: { height: layoutHeight } }) => {
+      onEndDrag: ({ contentOffset: { y }, contentSize: { height: contentHeight }, layoutMeasurement: { height: layoutHeight }, velocity }) => {
         'worklet'
         if (isHorizontal) return
+        // The 10pt scroll-up latch (snapUpAccum >= 10) has already started animating the footer offset
+        // back to 0; read it before anything below resets it, because settling on the in-flight value
+        // instead could pick "hidden" and reverse a deliberate reveal.
+        const revealing = snapUpAccum.value >= 10
         if (y >= contentHeight - layoutHeight - 10) {
           fromBottomBounce.value = true
           snapUpAccum.value = 0
         }
+        // A drag that released with momentum still to come keeps writing the offset through it, and
+        // settles when that ends; only a release that will genuinely stop here settles now.
+        if (chromeHosted && !footerFixed && chromeWritable.value && (velocity === undefined || Math.abs(velocity.y) < 0.1)) {
+          footerOffset.value = withTiming(revealing ? 0 : chromeSettleTarget(footerOffset.value, stackHeightShared.value), { duration: 200 })
+        }
       },
       onMomentumEnd: () => {
         'worklet'
+        const revealing = snapUpAccum.value >= 10
         fromBottomBounce.value = false
         snapUpAccum.value = 0
+        // Hosted: scroll tracks 1:1, so it can stop with the stack half hidden. The bar is the app's
+        // primary navigation, so it comes to rest fully shown or fully hidden, never cut off.
+        if (chromeHosted && !isHorizontal && !footerFixed && chromeWritable.value) {
+          footerOffset.value = withTiming(revealing ? 0 : chromeSettleTarget(footerOffset.value, stackHeightShared.value), { duration: 200 })
+        }
       }
     },
-    [capturedGeneration, headerFixed, footerFixed, isHorizontal, chipThreshold, listGeneration, onRemountSyncRetry, onRemountSynced, remountSyncTarget]
+    [capturedGeneration, chromeHosted, headerFixed, footerFixed, isHorizontal, chipThreshold, listGeneration, onRemountSyncRetry, onRemountSynced, remountSyncTarget]
   )
 }

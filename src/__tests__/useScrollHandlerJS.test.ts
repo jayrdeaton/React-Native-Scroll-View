@@ -5,11 +5,28 @@ import type { SharedValue } from 'react-native-reanimated'
 import { useScrollHandlerJS } from '../internal/useScrollHandlerJS'
 import { ScrollViewContext, type ScrollViewContextType } from '../ScrollViewContext'
 
+// usesContentInset is a module-level constant derived from Platform.OS at import time, so the
+// padding-mode (Android/web) geometry can only be reached by swapping the module itself. The getter
+// is read lazily on every use, letting a test flip modes without re-importing the handler under test.
+let mockUsesContentInset = true
+jest.mock('../internal/insetMode', () => ({
+  get usesContentInset() {
+    return mockUsesContentInset
+  }
+}))
+
 const REMOUNT_RETRY_MAX_ATTEMPTS = 8
 
-const buildContextValue = (overrides: Record<string, unknown> = {}): ScrollViewContextType =>
-  ({
-    footerHeightShared: { value: 0 },
+// Defaults to an unhosted provider, mirroring the real one: chromeWritable is always true and
+// stackHeightShared IS footerHeightShared (the same object), so the footer clamp behaves exactly as
+// it did before the chrome host existed. Hosted tests override chromeHosted and give
+// stackHeightShared a value of its own (see hostedContext).
+const buildContextValue = (overrides: Record<string, unknown> = {}): ScrollViewContextType => {
+  const footerHeightShared = overrides.footerHeightShared ?? { value: 0 }
+  return {
+    chromeHosted: false,
+    chromeWritable: { value: true },
+    footerHeightShared,
     footerOffset: { value: 0 },
     headerHeightShared: { value: 0 },
     headerOffset: { value: 0 },
@@ -17,15 +34,29 @@ const buildContextValue = (overrides: Record<string, unknown> = {}): ScrollViewC
     scrollPosition: { value: 0 },
     snapBackFooterShared: { value: false },
     snapBackHeaderShared: { value: false },
+    stackHeightShared: footerHeightShared,
     ...overrides
-  }) as unknown as ScrollViewContextType
+  } as unknown as ScrollViewContextType
+}
 
-const scrollEvent = (y: number, { contentHeight = 1000, layoutHeight = 500, x = 0 }: { contentHeight?: number; layoutHeight?: number; x?: number } = {}) =>
+// A hosted provider whose stack (footer + the bar it rides on) is taller than the footer alone.
+const HEADER_HEIGHT = 100
+const hostedContext = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
+  chromeHosted: true,
+  footerHeightShared: { value: 50 },
+  headerHeightShared: { value: HEADER_HEIGHT },
+  snapBackFooterShared: { value: true },
+  stackHeightShared: { value: 80 },
+  ...overrides
+})
+
+const scrollEvent = (y: number, { contentHeight = 1000, layoutHeight = 500, velocity, x = 0 }: { contentHeight?: number; layoutHeight?: number; velocity?: { x: number; y: number }; x?: number } = {}) =>
   ({
     nativeEvent: {
       contentOffset: { x, y },
       contentSize: { height: contentHeight, width: 0 },
-      layoutMeasurement: { height: layoutHeight, width: 0 }
+      layoutMeasurement: { height: layoutHeight, width: 0 },
+      velocity
     }
   }) as never
 
@@ -483,5 +514,316 @@ describe('useScrollHandlerJS onScrollEndDrag', () => {
     result.current.onScroll(scrollEvent(90, { contentHeight: 500, layoutHeight: 500 }))
     expect(contextValue.headerOffset.value).toBe(0)
     expect(contextValue.footerOffset.value).toBe(0)
+  })
+})
+
+// The hosted footer rides on a stack (footer + the persistent bar) taller than the footer alone, and
+// the geometry that decides whether that stack can hide differs between inset mode and padding mode,
+// so everything that goes through onScroll runs in both.
+describe.each<[string, boolean]>([
+  ['inset mode', true],
+  ['padding mode', false]
+])('useScrollHandlerJS chrome host, %s', (_label, inset) => {
+  // Events are described in inset space (rest = -HEADER_HEIGHT); padding mode reports raw offsets
+  // shifted by the header height, so convert on the way into the handler.
+  const raw = (yn: number) => (inset ? yn : yn + HEADER_HEIGHT)
+  const scrollTo = (result: { current: ReturnType<typeof useScrollHandlerJS> }, yn: number, contentHeight = 1000, layoutHeight = 500) => result.current.onScroll(scrollEvent(raw(yn), { contentHeight, layoutHeight }))
+
+  beforeEach(() => {
+    mockUsesContentInset = inset
+  })
+  afterEach(() => {
+    mockUsesContentInset = true
+  })
+
+  describe('footer clamp', () => {
+    it('clamps footerOffset to stackHeightShared, not footerHeightShared, when they differ', () => {
+      const { result, contextValue } = renderScrollHandlerJS({}, hostedContext({ scrollPosition: { value: -HEADER_HEIGHT } }))
+      expect(contextValue.stackHeightShared).not.toBe(contextValue.footerHeightShared)
+
+      scrollTo(result, -60) // delta 40
+      expect(contextValue.footerOffset.value).toBe(40)
+
+      scrollTo(result, -30) // delta 30 → 70: past footerHeightShared (50), still inside the stack (80)
+      expect(contextValue.footerOffset.value).toBe(70)
+
+      scrollTo(result, 400) // delta 430, well past both
+      expect(contextValue.footerOffset.value).toBe(80) // the stack height, not the footer's 50
+    })
+
+    it('follows stackHeightShared as it changes', () => {
+      const stackHeightShared = { value: 80 }
+      const { result, contextValue } = renderScrollHandlerJS({}, hostedContext({ scrollPosition: { value: -HEADER_HEIGHT }, stackHeightShared }))
+      scrollTo(result, 400)
+      expect(contextValue.footerOffset.value).toBe(80)
+
+      stackHeightShared.value = 120 // e.g. the footer grew or the safe-area inset changed
+      scrollTo(result, 450)
+      expect(contextValue.footerOffset.value).toBe(120)
+    })
+
+    it('clamps the header against its own height, unaffected by the stack', () => {
+      const { result, contextValue } = renderScrollHandlerJS({}, hostedContext({ scrollPosition: { value: -HEADER_HEIGHT }, snapBackHeaderShared: { value: true } }))
+      scrollTo(result, 400)
+      expect(contextValue.headerOffset.value).toBe(-HEADER_HEIGHT)
+      expect(contextValue.footerOffset.value).toBe(80)
+    })
+
+    it('snaps footerOffset back to 0 via withTiming after enough upward scroll', () => {
+      const { result, contextValue } = renderScrollHandlerJS({}, hostedContext({ footerOffset: { value: 70 }, scrollPosition: { value: 300 } }))
+      scrollTo(result, 285) // delta -15 crosses the 10-point snap-up threshold
+      expect(contextValue.footerOffset.value).toBe(0)
+    })
+  })
+
+  describe('not the owner', () => {
+    it('never writes footerOffset while chromeWritable is false, even though snapBackFooterShared is true', () => {
+      const { result, contextValue } = renderScrollHandlerJS({}, hostedContext({ chromeWritable: { value: false }, footerOffset: { value: 25 }, scrollPosition: { value: -HEADER_HEIGHT } }))
+
+      scrollTo(result, -60) // scrolling down would clamp/track
+      scrollTo(result, 200)
+      expect(contextValue.footerOffset.value).toBe(25)
+
+      scrollTo(result, 150) // scrolling up past the snap-up threshold would withTiming to 0
+      scrollTo(result, 100)
+      expect(contextValue.footerOffset.value).toBe(25)
+
+      scrollTo(result, -HEADER_HEIGHT) // back at rest would reset to 0
+      expect(contextValue.footerOffset.value).toBe(25)
+    })
+
+    it('still snaps the header while the footer is not writable', () => {
+      const { result, contextValue } = renderScrollHandlerJS({}, hostedContext({ chromeWritable: { value: false }, footerOffset: { value: 25 }, headerOffset: { value: -40 }, scrollPosition: { value: -HEADER_HEIGHT }, snapBackHeaderShared: { value: true } }))
+      scrollTo(result, -HEADER_HEIGHT)
+      expect(contextValue.headerOffset.value).toBe(0)
+      expect(contextValue.footerOffset.value).toBe(25)
+    })
+
+    it('starts writing again the moment chromeWritable turns true', () => {
+      const { result, contextValue } = renderScrollHandlerJS({}, hostedContext({ chromeWritable: { value: false }, scrollPosition: { value: -HEADER_HEIGHT } }))
+      scrollTo(result, -60)
+      expect(contextValue.footerOffset.value).toBe(0)
+
+      contextValue.chromeWritable.value = true
+      scrollTo(result, -30) // delta 30 from the previous event
+      expect(contextValue.footerOffset.value).toBe(30)
+    })
+  })
+
+  describe('short list', () => {
+    // contentHeight 540 in a 500 viewport → maxScroll 40. Hiding a stack of 200 needs at least that
+    // much travel in either mode (inset adds the header height: 40 + 100 = 140, still short).
+    const SHORT = { contentHeight: 540, layoutHeight: 500, stack: 200 }
+
+    it('forces a stale footerOffset back to 0 and does not track scrolling when the stack cannot fully hide', () => {
+      const { result, contextValue } = renderScrollHandlerJS({}, hostedContext({ footerOffset: { value: 60 }, scrollPosition: { value: -HEADER_HEIGHT }, stackHeightShared: { value: SHORT.stack } }))
+
+      scrollTo(result, -70, SHORT.contentHeight, SHORT.layoutHeight) // delta 30 would otherwise track upward from 60
+      expect(contextValue.footerOffset.value).toBe(0)
+
+      scrollTo(result, -60, SHORT.contentHeight, SHORT.layoutHeight) // delta 10, still not tracked
+      expect(contextValue.footerOffset.value).toBe(0)
+    })
+
+    it('leaves footerOffset alone when it is not writable, even on a short list', () => {
+      const { result, contextValue } = renderScrollHandlerJS({}, hostedContext({ chromeWritable: { value: false }, footerOffset: { value: 60 }, scrollPosition: { value: -HEADER_HEIGHT }, stackHeightShared: { value: SHORT.stack } }))
+      scrollTo(result, -70, SHORT.contentHeight, SHORT.layoutHeight)
+      expect(contextValue.footerOffset.value).toBe(60)
+    })
+
+    it('tracks normally when the list travels exactly as far as the stack is tall', () => {
+      // maxScroll 100; the hide distance is maxScroll + header in inset mode, maxScroll in padding mode.
+      const stack = inset ? 100 + HEADER_HEIGHT : 100
+      const { result, contextValue } = renderScrollHandlerJS({}, hostedContext({ scrollPosition: { value: -HEADER_HEIGHT }, stackHeightShared: { value: stack } }))
+      scrollTo(result, -50, 600, 500) // delta 50
+      expect(contextValue.footerOffset.value).toBe(50)
+    })
+
+    it('stops tracking one point below that boundary', () => {
+      const stack = (inset ? 100 + HEADER_HEIGHT : 100) + 1
+      const { result, contextValue } = renderScrollHandlerJS({}, hostedContext({ footerOffset: { value: 20 }, scrollPosition: { value: -HEADER_HEIGHT }, stackHeightShared: { value: stack } }))
+      scrollTo(result, -50, 600, 500)
+      expect(contextValue.footerOffset.value).toBe(0)
+    })
+
+    it('measures the travel per mode: the header height counts toward it only in inset mode', () => {
+      // maxScroll 100, stack 150: inset travel is 100 + 100 = 200 (hideable), padding travel is just 100 (not).
+      const { result, contextValue } = renderScrollHandlerJS({}, hostedContext({ footerOffset: { value: 60 }, scrollPosition: { value: -HEADER_HEIGHT }, stackHeightShared: { value: 150 } }))
+      scrollTo(result, -70, 600, 500) // delta 30
+      expect(contextValue.footerOffset.value).toBe(inset ? 90 : 0)
+    })
+  })
+
+  describe('unhosted regression', () => {
+    it('gives the fixture a stackHeightShared that is the same object as footerHeightShared', () => {
+      const { contextValue } = renderScrollHandlerJS({}, { footerHeightShared: { value: 50 } })
+      expect(contextValue.chromeHosted).toBe(false)
+      expect(contextValue.stackHeightShared).toBe(contextValue.footerHeightShared)
+    })
+
+    it('still clamps to footerHeightShared, following it as it changes', () => {
+      const { result, contextValue } = renderScrollHandlerJS({}, { footerHeightShared: { value: 50 }, headerHeightShared: { value: HEADER_HEIGHT }, scrollPosition: { value: -HEADER_HEIGHT }, snapBackFooterShared: { value: true } })
+      scrollTo(result, 400)
+      expect(contextValue.footerOffset.value).toBe(50)
+
+      contextValue.footerHeightShared.value = 30
+      scrollTo(result, 450)
+      expect(contextValue.footerOffset.value).toBe(30)
+    })
+
+    it('never applies the short-list gate: a tiny scroll range still tracks and a stale offset is not forced to 0', () => {
+      const { result, contextValue } = renderScrollHandlerJS({}, { footerHeightShared: { value: 50 }, footerOffset: { value: 10 }, headerHeightShared: { value: HEADER_HEIGHT }, scrollPosition: { value: -HEADER_HEIGHT }, snapBackFooterShared: { value: true } })
+      // maxScroll 20 → far too little travel to hide a 50-tall footer, but unhosted never asks.
+      scrollTo(result, -80, 520, 500) // delta 20
+      expect(contextValue.footerOffset.value).toBe(30)
+    })
+
+    it('tracks and snaps back on the very same events that the short-list gate blocks when hosted', () => {
+      const { result, contextValue } = renderScrollHandlerJS({}, { footerHeightShared: { value: 200 }, footerOffset: { value: 60 }, headerHeightShared: { value: HEADER_HEIGHT }, scrollPosition: { value: -HEADER_HEIGHT }, snapBackFooterShared: { value: true } })
+      scrollTo(result, -70, 540, 500) // the same geometry the hosted short-list test forces to 0
+      expect(contextValue.footerOffset.value).toBe(90)
+    })
+  })
+})
+
+describe('useScrollHandlerJS chrome host settle', () => {
+  const STACK = 100
+  const settleContext = (overrides: Record<string, unknown> = {}) => hostedContext({ footerHeightShared: { value: 50 }, stackHeightShared: { value: STACK }, ...overrides })
+
+  describe('on momentum scroll end', () => {
+    it.each([
+      [0, 0],
+      [10, 0],
+      [49, 0],
+      [50, 0], // exactly halfway rests shown
+      [51, STACK],
+      [99, STACK],
+      [STACK, STACK]
+    ])('settles an offset of %d to %d', (offset, expected) => {
+      const { result, contextValue } = renderScrollHandlerJS({}, settleContext({ footerOffset: { value: offset } }))
+      result.current.onMomentumScrollEnd(scrollEvent(0))
+      expect(contextValue.footerOffset.value).toBe(expected)
+    })
+
+    it('settles against stackHeightShared, not footerHeightShared', () => {
+      // Against the 50-tall footer alone, 60 would be past halfway and land on 50.
+      const { result, contextValue } = renderScrollHandlerJS({}, settleContext({ footerOffset: { value: 60 } }))
+      result.current.onMomentumScrollEnd(scrollEvent(0))
+      expect(contextValue.footerOffset.value).toBe(STACK)
+    })
+
+    it('does not settle in horizontal mode', () => {
+      const { result, contextValue } = renderScrollHandlerJS({ isHorizontal: true }, settleContext({ footerOffset: { value: 60 } }))
+      result.current.onMomentumScrollEnd(scrollEvent(0))
+      expect(contextValue.footerOffset.value).toBe(60)
+    })
+  })
+
+  describe('on scroll end drag', () => {
+    it.each<[string, { x: number; y: number } | undefined]>([
+      ['undefined', undefined],
+      ['zero', { x: 0, y: 0 }],
+      ['slow downward', { x: 0, y: 0.05 }],
+      ['slow upward', { x: 0, y: -0.05 }]
+    ])('settles when velocity is %s', (_label, velocity) => {
+      const { result, contextValue } = renderScrollHandlerJS({}, settleContext({ footerOffset: { value: 60 } }))
+      result.current.onScrollEndDrag(scrollEvent(0, { velocity }))
+      expect(contextValue.footerOffset.value).toBe(STACK)
+    })
+
+    it('settles down toward 0 as well', () => {
+      const { result, contextValue } = renderScrollHandlerJS({}, settleContext({ footerOffset: { value: 40 } }))
+      result.current.onScrollEndDrag(scrollEvent(0, { velocity: { x: 0, y: 0 } }))
+      expect(contextValue.footerOffset.value).toBe(0)
+    })
+
+    it.each<[string, { x: number; y: number }]>([
+      ['at the 0.1 threshold', { x: 0, y: 0.1 }],
+      ['fast downward', { x: 0, y: 2 }],
+      ['fast upward', { x: 0, y: -2 }]
+    ])('does not settle when velocity is %s, leaving it to the momentum that follows', (_label, velocity) => {
+      const { result, contextValue } = renderScrollHandlerJS({}, settleContext({ footerOffset: { value: 60 } }))
+      result.current.onScrollEndDrag(scrollEvent(0, { velocity }))
+      expect(contextValue.footerOffset.value).toBe(60)
+
+      result.current.onMomentumScrollEnd(scrollEvent(0)) // the deferred settle
+      expect(contextValue.footerOffset.value).toBe(STACK)
+    })
+
+    it('does not settle in horizontal mode', () => {
+      const { result, contextValue } = renderScrollHandlerJS({ isHorizontal: true }, settleContext({ footerOffset: { value: 60 } }))
+      result.current.onScrollEndDrag(scrollEvent(0, { velocity: { x: 0, y: 0 } }))
+      expect(contextValue.footerOffset.value).toBe(60)
+    })
+  })
+
+  describe.each<[string, (result: { current: ReturnType<typeof useScrollHandlerJS> }) => void]>([
+    ['onMomentumScrollEnd', (result) => result.current.onMomentumScrollEnd(scrollEvent(0))],
+    ['onScrollEndDrag', (result) => result.current.onScrollEndDrag(scrollEvent(0, { velocity: { x: 0, y: 0 } }))]
+  ])('%s never settles', (_name, trigger) => {
+    it('settles when hosted, not fixed and writable (control for the cases below)', () => {
+      const { result, contextValue } = renderScrollHandlerJS({}, settleContext({ footerOffset: { value: 60 } }))
+      trigger(result)
+      expect(contextValue.footerOffset.value).toBe(STACK)
+    })
+
+    it('when unhosted', () => {
+      const { result, contextValue } = renderScrollHandlerJS({}, settleContext({ chromeHosted: false, footerOffset: { value: 60 } }))
+      trigger(result)
+      expect(contextValue.footerOffset.value).toBe(60)
+    })
+
+    it('when the footer is fixed (Footer Lock)', () => {
+      const { result, contextValue } = renderScrollHandlerJS({ footerFixed: true }, settleContext({ footerOffset: { value: 60 } }))
+      trigger(result)
+      expect(contextValue.footerOffset.value).toBe(60)
+    })
+
+    it('when chromeWritable is false (not the owner, or pinned)', () => {
+      const { result, contextValue } = renderScrollHandlerJS({}, settleContext({ chromeWritable: { value: false }, footerOffset: { value: 60 } }))
+      trigger(result)
+      expect(contextValue.footerOffset.value).toBe(60)
+    })
+  })
+})
+
+// The 10pt scroll-up latch (snapUpAccum >= 10) starts a withTiming(0) reveal; a settle that ran while
+// that animation was still in flight would read the in-flight offset, and if it was still past
+// halfway pick "hidden" — reversing a deliberate reveal. (The reanimated mock's withTiming lands on
+// its target instantly, so each test puts the offset back where the real animation would still be.)
+describe('useScrollHandlerJS chrome host settle vs the reveal latch', () => {
+  const STACK = 100
+  const startReveal = () => {
+    const { result, contextValue } = renderScrollHandlerJS({}, hostedContext({ footerOffset: { value: 70 }, scrollPosition: { value: 300 }, stackHeightShared: { value: STACK } }))
+    result.current.onScroll(scrollEvent(285)) // delta -15 crosses the 10-point threshold: the reveal starts
+    contextValue.footerOffset.value = 60 // where the animation still is, past halfway
+    return { result, contextValue }
+  }
+
+  it('keeps revealing on momentum scroll end instead of settling on the in-flight offset', () => {
+    const { result, contextValue } = startReveal()
+    result.current.onMomentumScrollEnd(scrollEvent(285))
+    expect(contextValue.footerOffset.value).toBe(0)
+  })
+
+  it('keeps revealing on a scroll end drag that will stop here', () => {
+    const { result, contextValue } = startReveal()
+    result.current.onScrollEndDrag(scrollEvent(285, { velocity: { x: 0, y: 0 } }))
+    expect(contextValue.footerOffset.value).toBe(0)
+  })
+
+  it('forgets the latch once a new drag begins, so a plain settle picks the nearest end again', () => {
+    const { result, contextValue } = startReveal()
+    result.current.onScrollBeginDrag(scrollEvent(285))
+    result.current.onMomentumScrollEnd(scrollEvent(285))
+    expect(contextValue.footerOffset.value).toBe(STACK)
+  })
+
+  it('forgets the latch after a momentum scroll end, so a later settle picks the nearest end', () => {
+    const { result, contextValue } = startReveal()
+    result.current.onMomentumScrollEnd(scrollEvent(285))
+    contextValue.footerOffset.value = 60
+    result.current.onMomentumScrollEnd(scrollEvent(285))
+    expect(contextValue.footerOffset.value).toBe(STACK)
   })
 })

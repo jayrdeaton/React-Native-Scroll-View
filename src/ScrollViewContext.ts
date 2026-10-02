@@ -3,6 +3,14 @@ import { SharedValue } from 'react-native-reanimated'
 
 export type ScrollViewContextType = {
   blur: boolean
+  // True when this provider is driven by a ScrollViewChromeProvider above the navigator (see
+  // ScrollViewChromeProvider). Hosted footers sit above the persistent bar, share its offset, and
+  // always snap back.
+  chromeHosted: boolean
+  chromeOverhang: number
+  // Whether this provider's scroll handlers may currently write footerOffset: always true unhosted,
+  // and only while this provider owns the host (and nothing has pinned it) when hosted.
+  chromeWritable: SharedValue<boolean>
   footerAboveKeyboard: boolean
   footerHeight: number | null
   footerHeightShared: SharedValue<number>
@@ -32,11 +40,18 @@ export type ScrollViewContextType = {
   setHeaderHeight: (h: number | null) => void
   setProgress: (p: number | null) => void
   setProgressing: (b: boolean) => void
+  // The farthest footerOffset can travel: how far the whole bottom stack has to slide to clear the
+  // screen. Unhosted this IS footerHeightShared (the same SharedValue), so unhosted snap-back
+  // clamps exactly as it always has.
+  stackHeightShared: SharedValue<number>
   tabBarHeight: number
 }
 
 export const ScrollViewContext = createContext<ScrollViewContextType>({
   blur: true,
+  chromeHosted: false,
+  chromeOverhang: 0,
+  chromeWritable: null as unknown as SharedValue<boolean>,
   footerAboveKeyboard: false,
   footerHeight: null,
   footerHeightShared: null as unknown as SharedValue<number>,
@@ -61,5 +76,6 @@ export const ScrollViewContext = createContext<ScrollViewContextType>({
   setProgressing: () => {},
   snapBackFooterShared: null as unknown as SharedValue<boolean>,
   snapBackHeaderShared: null as unknown as SharedValue<boolean>,
+  stackHeightShared: null as unknown as SharedValue<number>,
   tabBarHeight: 0
 })

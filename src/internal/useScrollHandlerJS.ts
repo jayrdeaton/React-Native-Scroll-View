@@ -4,6 +4,7 @@ import type { SharedValue } from 'react-native-reanimated'
 import { withTiming } from 'react-native-reanimated'
 
 import { ScrollViewContext } from '../ScrollViewContext'
+import { chromeSettleTarget, chromeTravel } from './chrome'
 import { usesContentInset } from './insetMode'
 
 const REMOUNT_RETRY_TOLERANCE = 1
@@ -36,7 +37,7 @@ export type ScrollHandlerJS = {
 // their next UI-thread frame. This trades a small amount of latency for a plain scrollable that
 // reliably honors the initial `contentOffset` prop on (re)mount, which Animated.FlatList does not.
 export function useScrollHandlerJS({ capturedGeneration, chipHidden, chipThreshold = 100, footerFixed, headerFixed, isHorizontal, jsListGeneration, remountTarget = null, scrollTo }: UseScrollHandlerJSOptions): ScrollHandlerJS {
-  const { footerHeightShared, footerOffset, headerHeightShared, headerOffset, pullSearchHeightShared, scrollPosition, snapBackFooterShared, snapBackHeaderShared } = useContext(ScrollViewContext)
+  const { chromeHosted, chromeWritable, footerOffset, headerHeightShared, headerOffset, pullSearchHeightShared, scrollPosition, snapBackFooterShared, snapBackHeaderShared, stackHeightShared } = useContext(ScrollViewContext)
   const snapUpAccum = useRef(0)
   const fromBottomBounce = useRef(false)
   // On a remount, the very first native position after mount isn't reliable — Fabric can skip
@@ -88,7 +89,11 @@ export function useScrollHandlerJS({ capturedGeneration, chipHidden, chipThresho
         fromBottomBounce.current = false
       }
       const snapHeader = snapBackHeaderShared.value && !headerFixed
-      const snapFooter = snapBackFooterShared.value && !footerFixed
+      // See useScrollHandler: a hosted stack that this list can't scroll far enough to fully hide
+      // never starts hiding.
+      const hideable = !chromeHosted || chromeTravel(maxScroll, headerHeightShared.value) >= stackHeightShared.value
+      if (chromeHosted && !hideable && chromeWritable.value && footerOffset.value !== 0) footerOffset.value = 0
+      const snapFooter = snapBackFooterShared.value && !footerFixed && chromeWritable.value && hideable
       if (snapHeader || snapFooter) {
         if (yn <= -headerHeightShared.value) {
           snapUpAccum.current = 0
@@ -98,7 +103,7 @@ export function useScrollHandlerJS({ capturedGeneration, chipHidden, chipThresho
           snapUpAccum.current = 0
           if (yn >= -headerHeightShared.value + pullSearchHeightShared.value) {
             if (snapHeader) headerOffset.value = Math.max(-headerHeightShared.value, Math.min(0, headerOffset.value - delta))
-            if (snapFooter) footerOffset.value = Math.max(0, Math.min(footerHeightShared.value, footerOffset.value + delta))
+            if (snapFooter) footerOffset.value = Math.max(0, Math.min(stackHeightShared.value, footerOffset.value + delta))
           }
         } else if (delta < 0 && !fromBottomBounce.current) {
           if (yn >= -headerHeightShared.value + pullSearchHeightShared.value) snapUpAccum.current -= delta
@@ -110,7 +115,7 @@ export function useScrollHandlerJS({ capturedGeneration, chipHidden, chipThresho
         }
       }
     },
-    [capturedGeneration, chipHidden, chipThreshold, footerFixed, footerHeightShared, footerOffset, headerFixed, headerHeightShared, headerOffset, isHorizontal, jsListGeneration, pullSearchHeightShared, scrollPosition, scrollTo, snapBackFooterShared, snapBackHeaderShared]
+    [capturedGeneration, chipHidden, chipThreshold, chromeHosted, chromeWritable, footerFixed, footerOffset, headerFixed, headerHeightShared, headerOffset, isHorizontal, jsListGeneration, pullSearchHeightShared, scrollPosition, scrollTo, snapBackFooterShared, snapBackHeaderShared, stackHeightShared]
   )
 
   const onScrollBeginDrag = useCallback(() => {
@@ -120,26 +125,45 @@ export function useScrollHandlerJS({ capturedGeneration, chipHidden, chipThresho
 
   const onMomentumScrollBegin = useCallback(() => {}, [])
 
+  // Hosted: scroll tracks 1:1, so it can stop with the stack half hidden; it settles to fully shown
+  // or fully hidden instead, since the bar is the app's primary navigation. `revealing` is whether
+  // the 10pt scroll-up latch has already started animating the offset back to 0 — settling on the
+  // in-flight value instead could pick "hidden" and reverse a deliberate reveal.
+  const settle = useCallback(
+    (revealing: boolean) => {
+      if (!chromeHosted || footerFixed || !chromeWritable.value) return
+      footerOffset.value = withTiming(revealing ? 0 : chromeSettleTarget(footerOffset.value, stackHeightShared.value), { duration: 200 })
+    },
+    [chromeHosted, chromeWritable, footerFixed, footerOffset, stackHeightShared]
+  )
+
   const onScrollEndDrag = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       if (isHorizontal) return
       const {
         contentOffset: { y },
         contentSize: { height: contentHeight },
-        layoutMeasurement: { height: layoutHeight }
+        layoutMeasurement: { height: layoutHeight },
+        velocity
       } = event.nativeEvent
+      const revealing = snapUpAccum.current >= 10
       if (y >= contentHeight - layoutHeight - 10) {
         fromBottomBounce.current = true
         snapUpAccum.current = 0
       }
+      // A release with momentum still to come keeps writing the offset through it and settles when
+      // that ends; only one that will genuinely stop here settles now.
+      if (velocity === undefined || Math.abs(velocity.y) < 0.1) settle(revealing)
     },
-    [isHorizontal]
+    [isHorizontal, settle]
   )
 
   const onMomentumScrollEnd = useCallback(() => {
+    const revealing = snapUpAccum.current >= 10
     fromBottomBounce.current = false
     snapUpAccum.current = 0
-  }, [])
+    if (!isHorizontal) settle(revealing)
+  }, [isHorizontal, settle])
 
   return { onMomentumScrollBegin, onMomentumScrollEnd, onScroll, onScrollBeginDrag, onScrollEndDrag }
 }

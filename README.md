@@ -70,6 +70,7 @@ Screen-level provider that owns header/footer state and scroll position. Must wr
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `blur` | `boolean` | system | Enable frosted-glass backdrop on header/footer |
+| `chrome` | `boolean` | `true` | Join an enclosing [`ScrollViewChromeProvider`](#scrollviewchromeprovider) when there is one. Pass `false` to opt out — for a nested provider that isn't a screen, such as a picker or form modal. No effect when nothing hosts |
 | `fixed` | `boolean` | `false` | Pin both header and footer (overrides `headerFixed`/`footerFixed`) |
 | `footerAboveKeyboard` | `boolean` | `false` | With a fixed footer, float it above the keyboard instead of letting the keyboard cover it — see [Keyboard awareness](#keyboard-awareness) |
 | `headerFixed` | `boolean` | `false` | Pin header; overrides settings default |
@@ -77,7 +78,23 @@ Screen-level provider that owns header/footer state and scroll position. Must wr
 | `snapBack` | `boolean` | `false` | Snap header and footer back when scrolling up |
 | `snapBackHeader` | `boolean` | — | Override `snapBack` for header only |
 | `snapBackFooter` | `boolean` | — | Override `snapBack` for footer only |
-| `tabBarHeight` | `number` | `0` | Extra bottom inset reserved for a host app's own persistent tab bar (added on top of the safe-area inset, independent of any `ScrollViewFooter`) |
+| `tabBarHeight` | `number` | `0` | Extra bottom inset reserved for a host app's own persistent tab bar (added on top of the safe-area inset, independent of any `ScrollViewFooter`). Ignored inside a `ScrollViewChromeProvider` — the host's `footprint` replaces it (see [Persistent bottom chrome](#persistent-bottom-chrome-hiding-a-tab-bar-with-scroll)) |
+
+---
+
+### `ScrollViewChromeProvider`
+
+Hosts a persistent bottom bar (a tab bar) so it hides on scroll together with each screen's `ScrollViewFooter`. Mount it once, above the navigator. Every focused `ScrollViewProvider` below it joins automatically. See [Persistent bottom chrome](#persistent-bottom-chrome-hiding-a-tab-bar-with-scroll) for the full picture.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `children` | `ReactNode` | — | Usually the navigator (`<Tabs>`) |
+| `footprint` | `number` | required | Height of the bar's resting box, including its bottom safe-area inset — how far above the screen bottom a hosted `ScrollViewFooter` has to sit to clear it. A plain number rather than something the bar reports back, so every screen has the right geometry on its very first render |
+| `overhang` | `number` | `0` | How far the bar pokes *above* its resting box (a raised centre button, say). Hosted footers pad their bottom by this instead of the safe-area inset, and the hide distance covers it |
+| `snapBack` | `boolean` | `true` | Hosted footers reveal on a short scroll-up instead of only near the top. A bar that hides on scroll has to be reachable from anywhere in a list, so leave this on unless you have a reason not to |
+| `useIsActive` | `() => boolean` | `() => true` | A hook returning whether the calling screen is the focused one — pass react-navigation's `useIsFocused` (re-exported by `expo-router`). Only the focused screen drives the bar. Injected so this package carries no navigation dependency. **Must be a stable hook reference** (a module-level hook such as `useIsFocused`, never an inline arrow created per render): it is called as a hook on every render of every hosted provider |
+
+The default `() => true` makes every mounted hosted screen claim the host, and the last one to mount owns it — only right for a navigator that keeps a single screen mounted. Use `useIsFocused` with `Tabs` or anything else that keeps visited screens alive.
 
 ---
 
@@ -111,6 +128,8 @@ Floating footer with blur backdrop. Place it as a direct child of `ScrollViewPro
 |------|------|-------------|
 | `children` | `ReactNode` | Footer content |
 | `style` | `ViewStyle` | Style applied to the inner row |
+
+Inside a [`ScrollViewChromeProvider`](#scrollviewchromeprovider) the footer sits above the host's persistent bar and hides and reveals together with it.
 
 ---
 
@@ -311,6 +330,126 @@ Keyboard awareness is native-only — `useKeyboardInset` (and therefore `keyboar
 
 ---
 
+## Persistent bottom chrome (hiding a tab bar with scroll)
+
+A `ScrollViewFooter` hides on scroll, but an app's tab bar lives outside this package — it stays put, and the footer has to be lifted above it with `tabBarHeight`. `ScrollViewChromeProvider` turns the two into one rigid stack: the screen's footer and the tab bar share a single animated offset, so they hide and reveal together as one piece, frame for frame.
+
+Three pieces make it work:
+
+1. **Host** — mount `ScrollViewChromeProvider` above the navigator, giving it the bar's `footprint`.
+2. **Screens** — nothing to change. Each `ScrollViewProvider` (and its `ScrollViewHeader`, `ScrollViewFooter`, scroll component) below the host joins it while its screen is focused.
+3. **Bar** — your own tab bar reads the shared offset with `useScrollViewChromeStyle()` and applies it as an animated style. It has to overlay the screen (absolutely positioned at the bottom) with a resting box exactly `footprint` tall, since hosted footers are lifted by that number.
+
+```tsx
+// app/(tabs)/_layout.tsx
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
+import { ScrollViewChromeProvider, useScrollViewChromeReveal, useScrollViewChromeStyle } from '@rific/scroll-view'
+import { Tabs, useIsFocused } from 'expo-router'
+import { Pressable, StyleSheet, Text } from 'react-native'
+import Animated from 'react-native-reanimated'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
+const TAB_ROW = 48
+
+const TabBar = ({ navigation, state }: BottomTabBarProps) => {
+  const insets = useSafeAreaInsets()
+  const chromeStyle = useScrollViewChromeStyle()
+  const reveal = useScrollViewChromeReveal()
+  return (
+    <Animated.View style={[styles.bar, { height: TAB_ROW + insets.bottom, paddingBottom: insets.bottom }, chromeStyle]}>
+      {state.routes.map((route, index) => (
+        <Pressable
+          key={route.key}
+          style={styles.tab}
+          onPress={() => {
+            navigation.navigate(route.name)
+            // Tapping the tab you're already on brings the bar back
+            if (state.index === index) reveal()
+          }}
+        >
+          <Text>{route.name}</Text>
+        </Pressable>
+      ))}
+    </Animated.View>
+  )
+}
+
+export default function TabsLayout() {
+  const insets = useSafeAreaInsets()
+  return (
+    <ScrollViewChromeProvider footprint={TAB_ROW + insets.bottom} useIsActive={useIsFocused}>
+      <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} />} />
+    </ScrollViewChromeProvider>
+  )
+}
+
+const styles = StyleSheet.create({
+  bar: { bottom: 0, flexDirection: 'row', left: 0, position: 'absolute', right: 0 },
+  tab: { alignItems: 'center', flex: 1, height: TAB_ROW, justifyContent: 'center' }
+})
+```
+
+Screens are written exactly as they were — there is no chrome-specific prop on the happy path:
+
+```tsx
+// app/(tabs)/library.tsx
+export default function Library() {
+  return (
+    <ScrollViewProvider>
+      <ScrollViewHeader title="Library" />
+      <FlatList data={items} renderItem={renderItem} keyExtractor={(item) => item.id} />
+      <ScrollViewFooter>
+        <Button onPress={addItem}>Add</Button>
+      </ScrollViewFooter>
+    </ScrollViewProvider>
+  )
+}
+```
+
+### Pinning the bar
+
+`useScrollViewChromePin(active)` holds the bar fully revealed — and stops scroll from hiding it — for as long as `active` is `true`. Use it whenever something on screen needs the bar to stay put, such as a focused search field or a multi-select in progress. Pins are counted, so two independent pinners can't release each other, and it works from any component under the host (below a `ScrollViewProvider` too).
+
+```tsx
+function SearchField() {
+  const [focused, setFocused] = useState(false)
+  useScrollViewChromePin(focused)
+  return <Searchbar onBlur={() => setFocused(false)} onFocus={() => setFocused(true)} />
+}
+```
+
+`useScrollViewChromeReveal()` returns a function that animates the bar back to fully revealed (200ms) — handy for a tab press or a "scroll to top" action, as in the example above.
+
+### Nested providers that aren't screens
+
+A `ScrollViewProvider` nested inside another one never sees the host: every hosted provider clears it for its own children, so a panel inside a screen can't compete with its parent. A picker or form modal is the exception — a portal can re-parent it out from under its screen's provider, and it would then claim the host and drive the bar from its own scrolling. Pass `chrome={false}` to opt those out:
+
+```tsx
+<ScrollViewProvider chrome={false} footerFixed>
+  <ScrollViewHeader title="Choose a category" />
+  <FlatList data={categories} renderItem={renderCategory} keyExtractor={(item) => item.id} />
+</ScrollViewProvider>
+```
+
+`chrome={false}` gives you exactly the unhosted behavior described in the rest of this README.
+
+### What changes for a hosted screen
+
+- **The footer joins the stack.** It sits `footprint` above the screen bottom, translates by the shared offset (clamped to the full hide distance), and pads its bottom by `overhang` instead of the safe-area inset — the bar's `footprint` already includes that inset.
+- **Hide distance.** The stack slides `footprint + max(footerHeight, overhang) + 2` points: the bar, plus the screen's footer (whose measured height already includes the `overhang` padding; with no footer, just the `overhang`), plus 2 points of slack so a soft shadow bleeding past the bar's box doesn't leave a sliver at the screen edge.
+- **Footer snap-back is forced.** A hosted footer follows the host's `snapBack` (default `true`) whatever the provider, `snapBackFooter` or settings values say, so the stack reveals on a short scroll-up from anywhere in a list. The header's own snap-back is untouched.
+- **Scrolling stops at an end.** Hiding tracks the scroll 1:1, so a drag can end with the stack half hidden. When a drag ends without momentum, or momentum ends, the stack animates (200ms) to whichever end is nearer — fully shown or fully hidden, never cut off.
+- **Short lists never hide.** A list that can't scroll at least the hide distance would strand the stack half hidden, so it never starts hiding and stays revealed.
+- **Footer Lock keeps it revealed.** A fixed footer (`footerFixed`, `fixed`, or the settings default) stops the scroll handlers from writing the offset, and turning it on while the stack is hidden animates the stack back. The hosted footer still reads the shared offset rather than pinning itself to zero, so the footer and the bar stay equal on every frame, including that animation.
+- **The focused screen owns the bar.** Screens that are mounted but unfocused never write the offset. Whenever ownership changes — switching tabs, or landing on a screen with no `ScrollViewProvider` at all — the stack resets to fully revealed instead of staying wherever the last screen parked it. A pin engaging does the same.
+- **The reserved bottom inset stays constant while hidden.** Scroll content reserves `footprint` plus the overhang (or a fixed footer's height) at the bottom. That space can't animate, so it stays reserved as the bar slides away rather than the list resizing mid-scroll — the last row can always scroll clear of a revealed bar, and nothing shifts when the bar hides.
+- **`tabBarHeight` is ignored.** The host's `footprint` is the same "reserve this much at the bottom" number, just known exactly, and takes its place.
+- **With a fixed footer floating above the keyboard** (`footerFixed` + `footerAboveKeyboard`), the footer sits above whichever is taller, the bar or the keyboard, instead of floating a whole bar-height above the keyboard.
+
+Outside a host — or in a provider with `chrome={false}` — none of this applies and every behavior in the rest of this README is unchanged. `useScrollViewChromeStyle`, `useScrollViewChromePin` and `useScrollViewChromeReveal` are also inert there (a permanent zero translate, a no-op pin and a no-op reveal), so a shared tab bar component can call them unconditionally.
+
+---
+
 ## Hooks
 
 ### `useScrollView`
@@ -363,6 +502,39 @@ const keyboardHeight = useKeyboardInset()
 
 ---
 
+### `useScrollViewChromeStyle`
+
+For the persistent bar hosted by [`ScrollViewChromeProvider`](#scrollviewchromeprovider). Returns an animated style (`translateY` from the shared offset) to apply to an `Animated.View`, so the bar moves in lockstep with the focused screen's footer. Outside a host it is a permanent zero translate.
+
+```tsx
+const chromeStyle = useScrollViewChromeStyle()
+return <Animated.View style={[styles.bar, chromeStyle]}>{/* tabs */}</Animated.View>
+```
+
+---
+
+### `useScrollViewChromePin`
+
+Holds the hosted bar fully revealed, and stops scroll from hiding it, while `active` is `true`. Pins are ref-counted, so independent pinners can't release each other. Inert outside a host.
+
+```tsx
+useScrollViewChromePin(searchFocused)
+```
+
+---
+
+### `useScrollViewChromeReveal`
+
+Returns a `() => void` that animates the hosted bar back to fully revealed (200ms). Returns a no-op outside a host.
+
+```tsx
+const reveal = useScrollViewChromeReveal()
+```
+
+See [Persistent bottom chrome](#persistent-bottom-chrome-hiding-a-tab-bar-with-scroll) for all three in context.
+
+---
+
 ## Redux integration
 
 If your app uses Redux, you can drive scroll settings from the store instead of (or in addition to) `ScrollViewSettingsProvider`.
@@ -400,3 +572,5 @@ store.dispatch(scrollViewActions.initialize({ snapBack: true, headerFixed: false
 | `backActionFixed` | `true` | Keep back button visible as header scrolls away |
 
 Settings cascade: `ScrollViewSettingsProvider` → `ScrollViewProvider` → individual scroll component props. More specific values always win.
+
+One exception: inside a `ScrollViewChromeProvider`, a footer's snap-back comes from the host's `snapBack` prop rather than this cascade (see [Persistent bottom chrome](#persistent-bottom-chrome-hiding-a-tab-bar-with-scroll)).

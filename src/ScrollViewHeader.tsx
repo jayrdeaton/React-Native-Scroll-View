@@ -1,6 +1,6 @@
 import { BlurView } from '@rific/auto-paper'
-import { type ReactNode, useContext } from 'react'
-import { type LayoutChangeEvent, StyleSheet, Text, View, type ViewStyle } from 'react-native'
+import { type ReactNode, useContext, useLayoutEffect, useRef } from 'react'
+import { type LayoutChangeEvent, Platform, StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import { Appbar, ProgressBar, Surface, useTheme } from 'react-native-paper'
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -68,6 +68,27 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
     measuredShared.value = true
     if (headerHeight !== height) setHeaderHeight(height)
   }
+  // Web only: measure synchronously before the first paint instead of waiting for onLayout.
+  // react-native-web delivers onLayout from a ResizeObserver callback plus a setTimeout measure,
+  // which routinely lands after ScrollViewProvider's two-frame "no header, assume 0" fallback —
+  // so the first frames painted headerHeight === 0: header absolute with no backdrop, list with no
+  // top padding, its first rows (sort/filter chips) drawn up inside the header until the real
+  // height arrived. A layout effect runs after the DOM is built but before the browser paints, and
+  // a state update made here is applied synchronously before that paint too, so the very first
+  // frame on screen is already the final measured layout. `headerHeight` being 0 still runs this
+  // (a header mounting after the fallback fired); a node with no layout box (an ancestor hidden
+  // via display:none) reports 0 and is left to onLayout. offsetHeight is the same integer
+  // react-native-web's onLayout reports, so that later onLayout is a no-op rather than a re-set.
+  const contentRef = useRef<View>(null)
+  useLayoutEffect(() => {
+    if (Platform.OS !== 'web' || headerHeight) return
+    const height = (contentRef.current as unknown as { offsetHeight?: unknown } | null)?.offsetHeight
+    if (typeof height !== 'number' || height <= 0) return
+    measuredShared.value = true
+    setHeaderHeight(height)
+    // Mount-only: after this, onLayout owns every later change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const actionMargin = 4
   const contentMinHeight = actionSize + 2 * actionMargin
   // Same natural height the header renders at in-flow before headerHeight is ever measured (see
@@ -119,7 +140,7 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
         {headerHeight !== 0 && <BlurView blur={blur} style={[styles.blurInner, { height: headerHeight ?? unmeasuredHeight }]} />}
       </Animated.View>
       <Animated.View onLayout={handleLayout} pointerEvents='box-none' style={[headerHeight === null ? styles.headerInit : styles.header, translateStyle]}>
-        <View style={[{ paddingTop: top }, style]}>
+        <View ref={contentRef} style={[{ paddingTop: top }, style]}>
           {children ?? (
             <View style={[styles.content, { minHeight: contentMinHeight }]}>
               <View style={styles.side} />

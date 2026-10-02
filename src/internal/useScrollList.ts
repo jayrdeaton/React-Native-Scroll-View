@@ -25,10 +25,13 @@ export type UseScrollListOptions = {
 export function useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, hideUntilMeasured, isHorizontal, keyboardAware, pullSearchHeight, style }: UseScrollListOptions = {}) {
   const insets = useSafeAreaInsets()
   const keyboardHeight = useKeyboardInset()
-  const { footerAboveKeyboard, footerHeight, footerFixed: contextFooterFixed, headerHeight, headerHeightShared, headerFixed: contextHeaderFixed, headerOffset, pullSearchHeightShared, scrollPosition, snapBackHeaderShared, tabBarHeight } = useContext(ScrollViewContext)
+  const { chromeHosted, chromeOverhang, footerAboveKeyboard, footerHeight, footerFixed: contextFooterFixed, headerHeight, headerHeightShared, headerFixed: contextHeaderFixed, headerOffset, pullSearchHeightShared, scrollPosition, snapBackHeaderShared, tabBarHeight } = useContext(ScrollViewContext)
 
   const headerFixed = isHorizontal ? true : (headerFixedProp ?? contextHeaderFixed)
-  const footerFixed = isHorizontal ? true : (footerFixedProp ?? contextFooterFixed)
+  // Hosted, the footer and the bar share ONE offset that the provider's registrar reveals when Footer
+  // Lock turns on — and the registrar only sees the provider-level flag. A per-list override that
+  // turned the handlers off on its own would leave the stack stuck wherever it was hidden.
+  const footerFixed = isHorizontal ? true : chromeHosted ? contextFooterFixed : (footerFixedProp ?? contextFooterFixed)
 
   useEffect(() => {
     pullSearchHeightShared.value = usesContentInset ? (pullSearchHeight ?? 0) : 0
@@ -59,11 +62,25 @@ export function useScrollList({ footerFixed: footerFixedProp, headerFixed: heade
   // footerReserve + keyboardHeight in that case would leave a gap the size of the now-hidden footer
   // between the focused input and the keyboard, so max() reserves only whichever bottom obstruction
   // is actually taller right now.
+  //
+  // Hosted, tabBarHeight is the bar's footprint and it already contains the safe-area inset, so the
+  // base reserve is only what pokes above the bar (chromeOverhang) — not insets.bottom a second
+  // time. Hosted also reserves the screen footer's own height whether or not it is fixed: unlike an
+  // unhosted footer (whose position is a function of scroll, so scrolling to the end always hides
+  // it), a hosted stack settles wherever the last gesture left it, so a revealed footer at the end
+  // of a list would otherwise cover the last rows with no way to scroll them clear. This reserve
+  // stays constant even while the stack is hidden: contentInset can't animate, so the space stays
+  // reserved at the end of the list rather than the list growing as the bar slides away.
+  //
+  // A hosted, keyboard-floating footer pins itself at max(footprint - keyboardHeight, 0) instead of
+  // the full footprint (see ScrollViewFooter), so the bar reserve shrinks the same way.
   const insetGeometry = useMemo(() => {
-    const footerReserve = footerFixed ? footerHeight || insets.bottom : insets.bottom
-    const bottom = (!keyboardAware || (footerFixed && footerAboveKeyboard) ? footerReserve : Math.max(footerReserve, keyboardHeight)) + tabBarHeight
+    const baseReserve = chromeHosted ? chromeOverhang : insets.bottom
+    const footerReserve = chromeHosted ? Math.max(footerHeight ?? 0, baseReserve) : footerFixed ? footerHeight || baseReserve : baseReserve
+    const barReserve = chromeHosted && footerFixed && footerAboveKeyboard ? Math.max(tabBarHeight - keyboardHeight, 0) : tabBarHeight
+    const bottom = (!keyboardAware || (footerFixed && footerAboveKeyboard) ? footerReserve : Math.max(footerReserve, keyboardHeight)) + barReserve
     return { bottom, top: headerHeight ?? 0 }
-  }, [footerAboveKeyboard, footerFixed, footerHeight, insets.bottom, tabBarHeight, headerHeight, keyboardAware, keyboardHeight])
+  }, [chromeHosted, chromeOverhang, footerAboveKeyboard, footerFixed, footerHeight, insets.bottom, tabBarHeight, headerHeight, keyboardAware, keyboardHeight])
   // Outside inset mode the same geometry is applied as content padding instead; contentInset is
   // zeroed (not omitted) so consumers' offset math — scroll-to-top targets, minHeight — stays
   // correct in the raw 0-based coordinate space those platforms actually scroll in.

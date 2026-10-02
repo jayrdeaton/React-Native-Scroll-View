@@ -14,6 +14,9 @@ const SNAP_VERIFY_RETRY_DELAY_MS = 150
 const buildContextValue = (headerHeight: number | null): ScrollViewContextType =>
   ({
     blur: true,
+    chromeHosted: false,
+    chromeOverhang: 0,
+    chromeWritable: { value: true },
     footerHeight: 0,
     footerHeightShared: { value: 0 },
     footerFixed: false,
@@ -35,6 +38,7 @@ const buildContextValue = (headerHeight: number | null): ScrollViewContextType =
     setProgressing: jest.fn(),
     snapBackFooterShared: { value: false },
     snapBackHeaderShared: { value: false },
+    stackHeightShared: { value: 0 },
     tabBarHeight: 60
   }) as unknown as ScrollViewContextType
 

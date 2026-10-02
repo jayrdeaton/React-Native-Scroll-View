@@ -1,6 +1,6 @@
 import { act, render } from '@testing-library/react'
 import React from 'react'
-import { type LayoutChangeEvent, View } from 'react-native'
+import { type LayoutChangeEvent, Platform, View } from 'react-native'
 import { Appbar, Surface } from 'react-native-paper'
 import Animated from 'react-native-reanimated'
 
@@ -34,6 +34,9 @@ const sharedValue = <T,>(value: T) => ({ value })
 const buildHeaderContext = (overrides: Record<string, unknown> = {}): ScrollViewContextType =>
   ({
     blur: true,
+    chromeHosted: false,
+    chromeOverhang: 0,
+    chromeWritable: sharedValue(true),
     footerAboveKeyboard: false,
     footerHeight: null,
     footerHeightShared: sharedValue(0),
@@ -58,6 +61,7 @@ const buildHeaderContext = (overrides: Record<string, unknown> = {}): ScrollView
     setProgressing: jest.fn(),
     snapBackFooterShared: sharedValue(false),
     snapBackHeaderShared: sharedValue(false),
+    stackHeightShared: sharedValue(0),
     tabBarHeight: 0,
     ...overrides
   }) as unknown as ScrollViewContextType
@@ -288,6 +292,105 @@ describe('ScrollViewHeader', () => {
     expect(getByTestId('center')).toBeTruthy()
     expect(queryByText('Title text')).toBeNull()
     expect(queryByText('Caption text')).toBeNull()
+  })
+
+  describe('web pre-paint measurement', () => {
+    const originalOS = Platform.OS
+    // The content View is the one ScrollViewHeader hands a ref; give it a real-looking DOM height
+    // the way react-native-web's host node would. React 19 passes `ref` to function components as
+    // a plain prop, so the mocked View can fill it in during render, before layout effects run.
+    const withDomHeight = (offsetHeight: number) =>
+      mockView.mockImplementation(((props: { children?: React.ReactNode; ref?: { current: unknown } }) => {
+        if (props.ref && typeof props.ref === 'object') props.ref.current = { offsetHeight }
+        return props.children ?? null
+      }) as never)
+    let rafSpy: jest.SpyInstance
+    beforeEach(() => {
+      Platform.OS = 'web' as typeof Platform.OS
+      // Hold every rAF so the provider's two-frame fallback can never be what sets the height here.
+      rafSpy = jest.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(() => 0)
+    })
+    afterEach(() => {
+      Platform.OS = originalOS
+      rafSpy.mockRestore()
+      mockView.mockImplementation(((props: { children?: React.ReactNode }) => props.children ?? null) as never)
+    })
+
+    it('commits the measured height before the first paint, never painting a 0 or unmeasured layout first', () => {
+      withDomHeight(129)
+      const seen: (number | null)[] = []
+      const Reader = () => {
+        seen.push(React.useContext(ScrollViewContext).headerHeight)
+        return null
+      }
+      render(
+        <ScrollViewProvider>
+          <ScrollViewHeader title='Title' />
+          <Reader />
+        </ScrollViewProvider>
+      )
+      // render() returns only after the layout-effect update has re-rendered synchronously, i.e.
+      // before the browser could have painted the null-height pass.
+      expect(seen[seen.length - 1]).toBe(129)
+      expect(seen).not.toContain(0)
+      expect(rafSpy).toHaveBeenCalled()
+    })
+
+    it('replaces a fallback 0 the moment a header mounts after it', () => {
+      withDomHeight(129)
+      let ctx: ScrollViewContextType | undefined
+      const Reader = () => {
+        ctx = React.useContext(ScrollViewContext)
+        return null
+      }
+      const { rerender } = render(
+        <ScrollViewProvider>
+          <Reader />
+        </ScrollViewProvider>
+      )
+      act(() => ctx!.setHeaderHeight(0))
+      expect(ctx!.headerHeight).toBe(0)
+      rerender(
+        <ScrollViewProvider>
+          <ScrollViewHeader title='Title' />
+          <Reader />
+        </ScrollViewProvider>
+      )
+      expect(ctx!.headerHeight).toBe(129)
+    })
+
+    it('leaves a node with no layout box (hidden ancestor) to onLayout instead of committing 0', () => {
+      withDomHeight(0)
+      let ctx: ScrollViewContextType | undefined
+      const Reader = () => {
+        ctx = React.useContext(ScrollViewContext)
+        return null
+      }
+      render(
+        <ScrollViewProvider>
+          <ScrollViewHeader title='Title' />
+          <Reader />
+        </ScrollViewProvider>
+      )
+      expect(ctx!.headerHeight).toBeNull()
+    })
+
+    it('does nothing on native, where onLayout is reliable', () => {
+      Platform.OS = 'ios'
+      withDomHeight(129)
+      let ctx: ScrollViewContextType | undefined
+      const Reader = () => {
+        ctx = React.useContext(ScrollViewContext)
+        return null
+      }
+      render(
+        <ScrollViewProvider>
+          <ScrollViewHeader title='Title' />
+          <Reader />
+        </ScrollViewProvider>
+      )
+      expect(ctx!.headerHeight).toBeNull()
+    })
   })
 })
 

@@ -44,7 +44,7 @@ The package already exposes a `gesture` prop on `FlatList`, `SectionList`, and `
 
 ### Reference implementation
 
-`useItemList` in CashierFu-Utility (`src/hooks/useItemList.tsx`) has a working version of the pinch gesture and `handleColumns` cycling logic. That's the pattern to extract and generalize.
+`useItemList` in Utility (`src/hooks/useItemList.tsx`) has a working version of the pinch gesture and `handleColumns` cycling logic. That's the pattern to extract and generalize.
 
 ## `SearchButton` — Button-Triggered Search Bar Anchored Above the Keyboard
 
@@ -86,9 +86,9 @@ Mirrors `PullSearch`'s existing prop shape (`onChangeText`, `onHeightChange`, `p
 
 - **Standalone component vs. a `PullSearch` mode?** Recommend standalone (`SearchButton.tsx`) — different interaction model (trigger+overlay vs. scroll-position-driven), and folding it into `PullSearch` would bloat that component's already-nontrivial effect chain.
 - **Trigger placement** — freestanding (consumer places it anywhere, like `internal/FAB.tsx` today) vs. a dedicated slot on `ScrollViewFooter`? Recommend freestanding first; a footer slot can layer on top once the component itself is proven.
-- **History** — bake in a history feature, or leave it entirely to the consumer via `renderAccessory`? Recommend leaving it to the consumer — CashierFu-Utility's version pulls from a Redux-backed `useSearchHistory`, which is app-specific and shouldn't become a package dependency (AsyncStorage/Redux) just for this.
+- **History** — bake in a history feature, or leave it entirely to the consumer via `renderAccessory`? Recommend leaving it to the consumer — Utility's version pulls from a Redux-backed `useSearchHistory`, which is app-specific and shouldn't become a package dependency (AsyncStorage/Redux) just for this.
 - **Automatic Android fallback for `PullSearch`?** Once `SearchButton` exists, `PullSearch` could auto-swap to it outside inset mode instead of rendering statically. Recommend *not* doing this initially — implicit platform-based component swapping is surprising API behavior. Ship both as distinct opt-in components; a convenience wrapper can come later if the pattern proves out.
 
 ### Reference implementation
 
-`SearchFAB.tsx` (+ `useKeyboard.ts`) in CashierFu-Utility has the working version of this exact mechanic — FAB trigger, Portal-rendered overlay, live keyboard-anchored `translateY`, swipe-to-dismiss gesture, animated show/hide. It's coupled to app-specific search infra (`useCollectionQuery`, `useSearchHistory`, `useList`) that the package version should strip out in favor of plain callback props, but the animation/gesture/keyboard-tracking mechanics translate directly.
+`SearchFAB.tsx` (+ `useKeyboard.ts`) in Utility has the working version of this exact mechanic — FAB trigger, Portal-rendered overlay, live keyboard-anchored `translateY`, swipe-to-dismiss gesture, animated show/hide. It's coupled to app-specific search infra (`useCollectionQuery`, `useSearchHistory`, `useList`) that the package version should strip out in favor of plain callback props, but the animation/gesture/keyboard-tracking mechanics translate directly.

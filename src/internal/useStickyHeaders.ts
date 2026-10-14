@@ -26,7 +26,7 @@ export function useStickyHeaders(headerFixed: boolean, enabled: boolean): Sticky
     contentIndexShared.value = activeIndex
   }, [activeIndex, contentIndexShared])
 
-  // JS-side source of truth — sectionYPositions is a snapshot pushed to the worklet.
+  // JS-side source of truth - sectionYPositions is a snapshot pushed to the worklet.
   // Reading sectionYPositions.value from JS returns the UI-thread's stale copy, so
   // rapid async measure callbacks would overwrite each other; refs avoid that.
   const positionsCache = useRef<number[]>([])
@@ -65,7 +65,7 @@ export function useStickyHeaders(headerFixed: boolean, enabled: boolean): Sticky
     // Same web-only reanimated gap as useAnimatedStyle elsewhere in this file: this "prepare"
     // function's own SharedValue reads (sectionYPositions, headerHeightShared, scrollPosition,
     // snapBackHeaderShared, headerOffset, pullSearchHeightShared) need to be listed explicitly too
-    // — confirmed empirically that without them, useAnimatedReaction re-evaluates once on mount and
+    // - confirmed empirically that without them, useAnimatedReaction re-evaluates once on mount and
     // then never again on web, permanently freezing activeIndex/the active sticky section.
     [enabled, headerFixed, insetsTop, sectionYPositions, headerHeightShared, scrollPosition, snapBackHeaderShared, headerOffset, pullSearchHeightShared]
   )
@@ -74,7 +74,7 @@ export function useStickyHeaders(headerFixed: boolean, enabled: boolean): Sticky
   // header as it slides above the sticky line during a push transition.
   // Every SharedValue read below (headerHeightShared, scrollPosition, snapBackHeaderShared,
   // headerOffset, pullSearchHeightShared, and for overlayStyle also contentIndexShared/
-  // sectionYPositions/sectionHeights) has to be listed in the array too — see
+  // sectionYPositions/sectionHeights) has to be listed in the array too - see
   // ScrollViewHeader's translateStyle for why: on web, reanimated doesn't treat mutations to a
   // SharedValue as a reactive trigger for useAnimatedStyle unless it's in this array.
   const clipStyle = useAnimatedStyle(() => {

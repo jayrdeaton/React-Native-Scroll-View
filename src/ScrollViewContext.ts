@@ -23,7 +23,7 @@ export type ScrollViewContextType = {
   // Plain (non-Reanimated) counter for JS-thread-only scroll handlers (FlatList's useScrollHandlerJS).
   // A SharedValue is deliberately NOT used here: mutating `.value` from inside a React commit-phase
   // callback (a layout effect) is not synchronously visible even to an immediate subsequent read in
-  // the same callback — Reanimated defers the actual flush — which silently broke the "did another
+  // the same callback - Reanimated defers the actual flush - which silently broke the "did another
   // list instance just unmount" check this counter exists for. A plain ref has no such batching.
   jsListGeneration: RefObject<number>
   listGeneration: SharedValue<number>

@@ -110,8 +110,8 @@ const dragEvent = (y: number) => ({ nativeEvent: { contentOffset: { y } } }) as 
 // A true first mount (not a remount): headerHeight starts null, then a rerender simulates the
 // header's async measurement landing, mirroring the real production flow. Using a non-null
 // headerHeight from the start (like the remount-sync tests above) would make useScrollInit treat
-// this as a remount and pull in unrelated machinery — the priming scrollTo, the 40-frame RAF
-// oscillation, and the REMOUNT_SYNC_FALLBACK_MS timer — none of which is relevant to the pull-search
+// this as a remount and pull in unrelated machinery - the priming scrollTo, the 40-frame RAF
+// oscillation, and the REMOUNT_SYNC_FALLBACK_MS timer - none of which is relevant to the pull-search
 // snap logic under test here.
 const renderPullSearchInit = (pullSearchHeight: number) => {
   const scrollTo = jest.fn()
@@ -177,7 +177,7 @@ describe('useScrollInit pull-search snap', () => {
     })
     expect(scrollTo).toHaveBeenLastCalledWith(showY, false) // first non-animated retry, still short of target
 
-    // The retry "lands" — simulate onScroll confirming the real position.
+    // The retry "lands" - simulate onScroll confirming the real position.
     contextValue.scrollPosition.value = showY
     act(() => {
       jest.advanceTimersByTime(SNAP_VERIFY_RETRY_DELAY_MS)

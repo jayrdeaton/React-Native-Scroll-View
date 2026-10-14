@@ -50,7 +50,7 @@ const renderList = (contextOverrides: Partial<ScrollViewContextType>, keyboardAw
 }
 
 // Drives useKeyboardInset's internal state the same way a real keyboard-show event would, by
-// invoking the onMove handler this hook registered via useKeyboardHandler — see PullSearch.test.tsx
+// invoking the onMove handler this hook registered via useKeyboardHandler - see PullSearch.test.tsx
 // for the same pattern applied to onLayout.
 const openKeyboard = (height: number) => {
   const handlerMock = useKeyboardHandler as jest.Mock
@@ -73,7 +73,7 @@ describe('useScrollList bottom inset with a fixed footer', () => {
 
   // ScrollViewFooter grows its own container by keyboardHeight to float (rather than translating a
   // fixed-height bar), so the footerHeight it reports via onLayout already bakes keyboardHeight in
-  // — useScrollList must trust it as-is here, not add keyboardHeight again on top.
+  // - useScrollList must trust it as-is here, not add keyboardHeight again on top.
   it('trusts footerHeight as-is when footerAboveKeyboard opts the footer into floating above it', () => {
     const { result } = renderList({ footerAboveKeyboard: true, footerFixed: true }, true)
     openKeyboard(KEYBOARD_HEIGHT)
@@ -88,7 +88,7 @@ describe('useScrollList bottom inset with a fixed footer', () => {
 })
 
 // Hosted, tabBarHeight in the context is already the persistent bar's whole footprint (safe-area
-// inset included), so the base reserve is only what pokes ABOVE the bar — chromeOverhang — and the
+// inset included), so the base reserve is only what pokes ABOVE the bar - chromeOverhang - and the
 // safe-area inset must not be counted a second time.
 describe('useScrollList bottom inset with a chrome host', () => {
   const FOOTPRINT = 82
@@ -118,7 +118,7 @@ describe('useScrollList bottom inset with a chrome host', () => {
   })
 
   // Unlike an unhosted footer (a pure function of scroll position, so scrolling to the end always
-  // hides it), a hosted stack settles wherever the last gesture left it — a revealed footer at the end
+  // hides it), a hosted stack settles wherever the last gesture left it - a revealed footer at the end
   // of a list would cover the last rows if the reserve ignored it.
   it('reserves a measured footer even when it is not fixed, so a revealed footer never covers the last rows', () => {
     const { result } = renderHosted({ footerFixed: false, footerHeight: FOOTER_HEIGHT })

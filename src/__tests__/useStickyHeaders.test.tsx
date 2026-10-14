@@ -21,7 +21,7 @@ describe('useStickyHeaders', () => {
   // Regression test for the 2026-08-03 fix: the useAnimatedReaction driving activeIndex read
   // scrollPosition/headerHeightShared/etc. but didn't list them in its own dependency array, so on
   // web it evaluated once at mount (activeIndex stuck at -1, or whatever section was active at
-  // mount) and never again — SectionList's sticky header silently froze on the first section
+  // mount) and never again - SectionList's sticky header silently froze on the first section
   // forever instead of tracking scroll.
   it('updates activeIndex as scrollPosition crosses each section boundary', () => {
     const scrollPosition = { value: 0 }
@@ -61,7 +61,7 @@ describe('useStickyHeaders', () => {
       scrollPosition.value = 0
     })
     rerender()
-    // Scrolling back up returns to section 0 — confirms this isn't a one-way ratchet.
+    // Scrolling back up returns to section 0 - confirms this isn't a one-way ratchet.
     expect(result.current.activeIndex).toBe(0)
   })
 })

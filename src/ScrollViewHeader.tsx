@@ -12,12 +12,12 @@ export type ScrollViewHeaderProps = {
   actionSize?: number
   actionStyle?: ViewStyle
   // A plain callback renders the default Appbar.BackAction (themed onSurface, sized/positioned by
-  // actionSize/iconSize below) — the common case, unchanged from before. Passing a ReactNode
+  // actionSize/iconSize below) - the common case, unchanged from before. Passing a ReactNode
   // instead skips that default entirely and renders the given element in its place, same escape
   // hatch trailingAction already gave the other corner: a caller that wants its own color, icon,
   // or component altogether (a colored IconButton, say) isn't stuck fighting Appbar.BackAction's
   // own fixed color/no-customization API to get it. backActionAccessibilityLabel/iconSize below
-  // only apply to the default-rendered case — a custom element carries its own.
+  // only apply to the default-rendered case - a custom element carries its own.
   backAction?: (() => void) | ReactNode
   backActionAccessibilityLabel?: string
   backActionFixed?: boolean
@@ -56,7 +56,7 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
   const top = topInset ? insets.top : 0
   // Tracks "has this header's own onLayout fired yet" as a SharedValue rather than deriving it from
   // headerHeight (a plain, React-state-backed number) so the worklets below never have to list a
-  // value that flips from null to a real measured number in their dependency arrays — see the
+  // value that flips from null to a real measured number in their dependency arrays - see the
   // comment on translateStyle/blurStyle/progressStyle for why that recreation was a real crash, not
   // just a perf concern.
   const measuredShared = useSharedValue(false)
@@ -70,7 +70,7 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
   }
   // Web only: measure synchronously before the first paint instead of waiting for onLayout.
   // react-native-web delivers onLayout from a ResizeObserver callback plus a setTimeout measure,
-  // which routinely lands after ScrollViewProvider's two-frame "no header, assume 0" fallback —
+  // which routinely lands after ScrollViewProvider's two-frame "no header, assume 0" fallback -
   // so the first frames painted headerHeight === 0: header absolute with no backdrop, list with no
   // top padding, its first rows (sort/filter chips) drawn up inside the header until the real
   // height arrived. A layout effect runs after the DOM is built but before the browser paints, and
@@ -93,20 +93,20 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
   const contentMinHeight = actionSize + 2 * actionMargin
   // Same natural height the header renders at in-flow before headerHeight is ever measured (see
   // useScrollList's containerStyle comment for that same "in-flow first, absolute once measured"
-  // pattern) — used as the blur backdrop's own height for that same pre-measurement window, so it
+  // pattern) - used as the blur backdrop's own height for that same pre-measurement window, so it
   // doesn't render as a flat, unblurred box for the ~60-80ms an onLayout round trip takes on web.
   const unmeasuredHeight = top + contentMinHeight
   // Every one of these worklets reads SharedValues only (scrollPosition, snapBackHeaderShared,
-  // headerOffset, pullSearchHeightShared, headerHeightShared, measuredShared) — deliberately NOT the
+  // headerOffset, pullSearchHeightShared, headerHeightShared, measuredShared) - deliberately NOT the
   // plain `headerHeight` context value, even though it holds the same number. `headerHeight` is a
   // React-state-backed `number | null` that changes identity on every measurement (starting at null,
   // then flipping to a real pixel value within a frame of mount); putting it in a useAnimatedStyle
   // dependency array forces Reanimated to tear down and recreate the worklet the moment that happens
-  // — which crashed outright ("[Worklets] Tried to synchronously call a Remote Function") on
+  // - which crashed outright ("[Worklets] Tried to synchronously call a Remote Function") on
   // react-native-worklets 0.10.1. SharedValues never change identity, only their `.value`, so they're
   // safe to depend on and don't retrigger this. They still have to be LISTED here despite that: on
   // web, without the Reanimated Babel plugin's automatic worklet dependency capture, a SharedValue's
-  // mutations aren't picked up as reactive unless its reference appears in this array — omitting one
+  // mutations aren't picked up as reactive unless its reference appears in this array - omitting one
   // silently freezes that value's contribution to the header/blur/progress-bar's scroll tracking at
   // whatever it was when the array last changed.
   const translateStyle = useAnimatedStyle(() => {

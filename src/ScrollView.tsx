@@ -32,13 +32,13 @@ const ScrollViewInner = ({ chipProps, chipThreshold, children, contentContainerS
 
   const { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, contentPadding, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, isHorizontal, keyboardAware, pullSearchHeight, style })
   const { listGeneration, onListUnmount } = useContext(ScrollViewContext)
-  // -1 never matches a real generation (starts at 0, only increments) — the runOnUI call below
+  // -1 never matches a real generation (starts at 0, only increments) - the runOnUI call below
   // corrects it before any scroll event could observe the placeholder.
   const capturedGeneration = useSharedValue(-1)
   // Layout effects (not passive effects): React guarantees all layout-effect cleanups for fibers
   // removed in a commit run before any layout-effect setups for fibers added in that same commit,
   // but gives no such ordering guarantee for passive effects. On a key-forced remount, the outgoing
-  // instance's unmount and the incoming instance's mount land in the same commit — with passive
+  // instance's unmount and the incoming instance's mount land in the same commit - with passive
   // effects, the incoming instance's sync could run before the outgoing instance's bump, permanently
   // capturing a stale generation and silently disabling this instance's onScroll handling forever.
   // Correct ordering alone isn't sufficient, though: the onScroll worklet reads capturedGeneration
@@ -48,12 +48,12 @@ const ScrollViewInner = ({ chipProps, chipThreshold, children, contentContainerS
   // own serial queue, so it's guaranteed to run before any onScroll worklet invocation that could
   // only be queued after this component finishes mounting.
   //
-  // Web has no such thread split, though — react-native-worklets' own runOnUI there (see its
+  // Web has no such thread split, though - react-native-worklets' own runOnUI there (see its
   // threads.js) only enqueues the callback for the NEXT requestAnimationFrame, it doesn't run it
   // synchronously. That opens exactly the gap the native path exists to close: a scroll event
   // (including useScrollInit's own mount-time imperative scrollTo) landing before that deferred
   // frame sees capturedGeneration still at its -1 placeholder, fails the generation check below,
-  // and — since this effect only ever runs once per mount — never gets a second chance, silently
+  // and - since this effect only ever runs once per mount - never gets a second chance, silently
   // disabling scroll tracking (and therefore header/footer scroll-away) for this instance's entire
   // lifetime. Assigning directly is both simpler and provably correct on web: single-threaded JS
   // makes a synchronous write immediately visible to any read that follows it in program order, so

@@ -2,7 +2,7 @@ import React from 'react'
 
 const stub = ({ children }: { children?: React.ReactNode }) => children ?? null
 
-// Real Reanimated shared values persist their `.value` across re-renders (like useRef) — the
+// Real Reanimated shared values persist their `.value` across re-renders (like useRef) - the
 // `init` argument is only honored on the first call. A naive `{ value: init }` per render would
 // silently discard mutations made during a previous render every time the owning component re-renders.
 export const useSharedValue = <T>(init: T) => {
@@ -31,18 +31,18 @@ export const useAnimatedRef = <T>() => {
   return holder.current
 }
 // Real `useAnimatedStyle`/`useAnimatedProps` recompute reactively whenever a SharedValue read
-// inside `factory` mutates, independent of React's own render cycle — the exact mechanism this
+// inside `factory` mutates, independent of React's own render cycle - the exact mechanism this
 // package's whole 2026-08-03 bug class was about (a dependency array missing one of those
 // SharedValues silently freezes it on web). Rather than reproduce that reactivity model (a
 // SharedValue/subscriber pub-sub only worth building if a test needs to assert "did NOT
-// recompute"), this mock just calls `factory` fresh on every render — deliberately ignoring the
+// recompute"), this mock just calls `factory` fresh on every render - deliberately ignoring the
 // deps array entirely. That means a test only has to mutate a `.value` and trigger any re-render
 // (e.g. `rerender()`, or a prop/state change) to see the up-to-date computed style; it will not
 // by itself catch a missing dependency (that's what the `react-hooks/exhaustive-deps`
-// `additionalHooks` lint rule is for) — it catches wrong *logic* inside the factory.
+// `additionalHooks` lint rule is for) - it catches wrong *logic* inside the factory.
 export const useAnimatedStyle = (factory: () => object, _deps?: unknown[]) => factory()
 export const useAnimatedProps = (factory: () => object, _deps?: unknown[]) => factory()
-// Real reanimated returns a single callable that native scroll events are routed through — it's
+// Real reanimated returns a single callable that native scroll events are routed through - it's
 // what call sites pass as the `onScroll` prop (see ScrollView/SectionList/CustomList), so this mock
 // must itself be typeof 'function' rather than the raw handler map. Calling it directly invokes
 // onScroll (its most common use); the other worklets (onBeginDrag/onEndDrag/onMomentumEnd) are
@@ -67,7 +67,7 @@ export const useDerivedValue = (factory: () => unknown) => ({ value: factory() }
 export const withTiming = (value: number) => value
 export const withSpring = (value: number) => value
 
-// Real functional implementations, not stubs — now that useAnimatedStyle/useAnimatedProps above
+// Real functional implementations, not stubs - now that useAnimatedStyle/useAnimatedProps above
 // actually call their factories, every helper those factories call (interpolate/interpolateColor/
 // Extrapolation in this package's PullSearch and HorizontalDots) has to actually work, not just
 // exist, or the factory throws the moment a test renders that component.
@@ -126,9 +126,9 @@ export const runOnUI =
 
 export const createAnimatedComponent = (C: React.ComponentType) => C
 
-// The default export IS the Animated namespace — `import Animated from 'reanimated'` → Animated.View
+// The default export IS the Animated namespace - `import Animated from 'reanimated'` → Animated.View
 // `View` is spy-wrapped (matching Surface/ProgressBar/Chip in the react-native-paper mock) so a
-// test can pull `onLayout` off the last render's props and invoke it manually — e.g. PullSearch's
+// test can pull `onLayout` off the last render's props and invoke it manually - e.g. PullSearch's
 // barHeight only ever becomes non-zero through a real onLayout call, which nothing fires on its
 // own in this mocked environment.
 const Animated = {

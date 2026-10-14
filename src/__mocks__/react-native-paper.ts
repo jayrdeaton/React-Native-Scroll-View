@@ -8,10 +8,10 @@ export const Chip = jest.fn(stub)
 export const Icon = jest.fn(() => null)
 
 // Forwards a fresh spy-able {blur, focus} stub to whatever ref the consumer passes (PullSearch's
-// own inputRef), instead of dropping it — the real Searchbar forwards to a native TextInput the
+// own inputRef), instead of dropping it - the real Searchbar forwards to a native TextInput the
 // same way. Exported so a test can grab the SAME instance a given render produced, via
 // `getLastSearchbarRef()`, to assert PullSearch's internal `blurInput()` (fired from its
-// useAnimatedReaction) actually called .blur() on it — otherwise unobservable, since PullSearch
+// useAnimatedReaction) actually called .blur() on it - otherwise unobservable, since PullSearch
 // never exposes inputRef itself.
 let lastSearchbarRef: { blur: jest.Mock; focus: jest.Mock } | null = null
 export const getLastSearchbarRef = () => lastSearchbarRef

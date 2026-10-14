@@ -100,13 +100,13 @@ describe('useScrollHandlerJS generation guard', () => {
     result.current.onScroll(scrollEvent(10))
     expect(contextValue.scrollPosition.value).toBe(10)
 
-    // Another list instance mounted/unmounted elsewhere and bumped the shared generation counter —
+    // Another list instance mounted/unmounted elsewhere and bumped the shared generation counter -
     // this handler's own capturedGeneration (frozen at mount) is now stale.
     jsListGeneration.current = 1
     expect(capturedGeneration.current).toBe(0)
 
     result.current.onScroll(scrollEvent(999))
-    expect(contextValue.scrollPosition.value).toBe(10) // unchanged — the stale event was ignored
+    expect(contextValue.scrollPosition.value).toBe(10) // unchanged - the stale event was ignored
   })
 
   it('lets a fresh instance keep working even while a stale sibling is guarded out', () => {
@@ -136,7 +136,7 @@ describe('useScrollHandlerJS remount retry', () => {
     expect(scrollTo).toHaveBeenCalledTimes(REMOUNT_RETRY_MAX_ATTEMPTS)
 
     scrollTo.mockClear()
-    result.current.onScroll(scrollEvent(0)) // one more, past the max — gives up
+    result.current.onScroll(scrollEvent(0)) // one more, past the max - gives up
     expect(scrollTo).not.toHaveBeenCalled()
     expect(contextValue.scrollPosition.value).toBe(0) // accepted as-is instead of retrying forever
   })
@@ -146,7 +146,7 @@ describe('useScrollHandlerJS remount retry', () => {
     jsListGeneration.current = 1 // stale before the remount retry ever gets a chance to run
     result.current.onScroll(scrollEvent(0))
     expect(scrollTo).not.toHaveBeenCalled()
-    expect(contextValue.scrollPosition.value).toBe(0) // untouched — onScroll bailed out immediately
+    expect(contextValue.scrollPosition.value).toBe(0) // untouched - onScroll bailed out immediately
   })
 })
 
@@ -154,7 +154,7 @@ describe('useScrollHandlerJS isHorizontal mode', () => {
   it('tracks x instead of y and skips snap-back logic entirely', () => {
     const { result, contextValue } = renderScrollHandlerJS({ chipThreshold: 50, isHorizontal: true }, { headerOffset: { value: -40 }, footerOffset: { value: 25 }, snapBackFooterShared: { value: true }, snapBackHeaderShared: { value: true } })
 
-    result.current.onScroll(scrollEvent(9999, { x: 30, contentHeight: 9999, layoutHeight: 1 })) // huge y — would trigger bounce/snap in vertical mode
+    result.current.onScroll(scrollEvent(9999, { x: 30, contentHeight: 9999, layoutHeight: 1 })) // huge y - would trigger bounce/snap in vertical mode
     expect(contextValue.scrollPosition.value).toBe(30) // x, not y
     expect(contextValue.headerOffset.value).toBe(-40) // untouched
     expect(contextValue.footerOffset.value).toBe(25) // untouched
@@ -190,7 +190,7 @@ describe('useScrollHandlerJS bottom bounce', () => {
     // contentHeight 1000, layoutHeight 500 → maxScroll 500. y=580 is still within the bounce zone;
     // scrolling up (delta<0) here would otherwise start accumulating toward the snap-up trigger.
     result.current.onScroll(scrollEvent(580, { contentHeight: 1000, layoutHeight: 500 }))
-    expect(contextValue.headerOffset.value).toBe(-30) // unchanged — accumulation was suppressed
+    expect(contextValue.headerOffset.value).toBe(-30) // unchanged - accumulation was suppressed
     expect(contextValue.footerOffset.value).toBe(15)
 
     // Now genuinely below maxScroll: the bounce clears and accumulation resumes from a clean 0,
@@ -231,7 +231,7 @@ describe('useScrollHandlerJS snap-back at rest', () => {
     )
     result.current.onScroll(scrollEvent(-100, { contentHeight: 500, layoutHeight: 500 }))
     expect(contextValue.headerOffset.value).toBe(0)
-    expect(contextValue.footerOffset.value).toBe(25) // unchanged — footer is fixed
+    expect(contextValue.footerOffset.value).toBe(25) // unchanged - footer is fixed
   })
 
   it('only snaps the footer when the header is fixed, even though snapBackHeaderShared is true', () => {
@@ -246,7 +246,7 @@ describe('useScrollHandlerJS snap-back at rest', () => {
       }
     )
     result.current.onScroll(scrollEvent(-100, { contentHeight: 500, layoutHeight: 500 }))
-    expect(contextValue.headerOffset.value).toBe(-40) // unchanged — header is fixed
+    expect(contextValue.headerOffset.value).toBe(-40) // unchanged - header is fixed
     expect(contextValue.footerOffset.value).toBe(0)
   })
 
@@ -324,7 +324,7 @@ describe('useScrollHandlerJS snap-back clamping while scrolling down', () => {
     )
     result.current.onScroll(scrollEvent(-80, { contentHeight: 500, layoutHeight: 500 })) // delta = 20, at the pull-search threshold
     expect(contextValue.headerOffset.value).toBe(-20) // max(-100, min(0, 0 - 20))
-    expect(contextValue.footerOffset.value).toBe(25) // unchanged — footer is fixed
+    expect(contextValue.footerOffset.value).toBe(25) // unchanged - footer is fixed
   })
 
   it('clamps only the footer when the header is fixed', () => {
@@ -341,7 +341,7 @@ describe('useScrollHandlerJS snap-back clamping while scrolling down', () => {
       }
     )
     result.current.onScroll(scrollEvent(-80, { contentHeight: 500, layoutHeight: 500 })) // delta = 20
-    expect(contextValue.headerOffset.value).toBe(-40) // unchanged — header is fixed
+    expect(contextValue.headerOffset.value).toBe(-40) // unchanged - header is fixed
     expect(contextValue.footerOffset.value).toBe(20) // max(0, min(50, 0 + 20))
   })
 })
@@ -360,7 +360,7 @@ describe('useScrollHandlerJS snap-up accumulation while scrolling up', () => {
         snapBackHeaderShared: { value: true }
       }
     )
-    // Each of these lands below the -50 threshold, so the accumulator never even starts moving —
+    // Each of these lands below the -50 threshold, so the accumulator never even starts moving -
     // if it did, two -20 deltas would total 40 and still fall short of 10 anyway, so a snap here
     // can only mean the gate failed to hold accumulation back at all.
     result.current.onScroll(scrollEvent(-60, { contentHeight: 500, layoutHeight: 500 })) // delta -20
@@ -384,7 +384,7 @@ describe('useScrollHandlerJS snap-up accumulation while scrolling up', () => {
     result.current.onScroll(scrollEvent(94, { contentHeight: 500, layoutHeight: 500 })) // accum 6
     result.current.onScroll(scrollEvent(79, { contentHeight: 500, layoutHeight: 500 })) // accum 6 + 15 = 21
     expect(contextValue.headerOffset.value).toBe(0)
-    expect(contextValue.footerOffset.value).toBe(15) // unchanged — footer is fixed
+    expect(contextValue.footerOffset.value).toBe(15) // unchanged - footer is fixed
   })
 
   it('snaps only the footer via withTiming when the header is fixed', () => {
@@ -401,7 +401,7 @@ describe('useScrollHandlerJS snap-up accumulation while scrolling up', () => {
     )
     result.current.onScroll(scrollEvent(94, { contentHeight: 500, layoutHeight: 500 })) // accum 6
     result.current.onScroll(scrollEvent(79, { contentHeight: 500, layoutHeight: 500 })) // accum 6 + 15 = 21
-    expect(contextValue.headerOffset.value).toBe(-30) // unchanged — header is fixed
+    expect(contextValue.headerOffset.value).toBe(-30) // unchanged - header is fixed
     expect(contextValue.footerOffset.value).toBe(0)
   })
 })
@@ -508,7 +508,7 @@ describe('useScrollHandlerJS onScrollEndDrag', () => {
     )
 
     result.current.onScroll(scrollEvent(94, { contentHeight: 500, layoutHeight: 500 })) // accum 6
-    result.current.onScrollEndDrag(scrollEvent(200, { contentHeight: 1000, layoutHeight: 500 })) // well clear of the bottom — no reset
+    result.current.onScrollEndDrag(scrollEvent(200, { contentHeight: 1000, layoutHeight: 500 })) // well clear of the bottom - no reset
 
     // No reset happened, so this delta (-4) pushes the running total from 6 to 10 and snaps right away.
     result.current.onScroll(scrollEvent(90, { contentHeight: 500, layoutHeight: 500 }))
@@ -789,7 +789,7 @@ describe('useScrollHandlerJS chrome host settle', () => {
 
 // The 10pt scroll-up latch (snapUpAccum >= 10) starts a withTiming(0) reveal; a settle that ran while
 // that animation was still in flight would read the in-flight offset, and if it was still past
-// halfway pick "hidden" — reversing a deliberate reveal. (The reanimated mock's withTiming lands on
+// halfway pick "hidden" - reversing a deliberate reveal. (The reanimated mock's withTiming lands on
 // its target instantly, so each test puts the offset back where the real animation would still be.)
 describe('useScrollHandlerJS chrome host settle vs the reveal latch', () => {
   const STACK = 100

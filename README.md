@@ -14,7 +14,7 @@ npm install @rific/scroll-view
 npm install @rific/auto-paper react-native-reanimated react-native-gesture-handler react-native-safe-area-context react-native-paper react-native-keyboard-controller
 ```
 
-The exported Redux slice has no dependency on `@reduxjs/toolkit` — it works with RTK stores, vanilla Redux, or no Redux at all.
+The exported Redux slice has no dependency on `@reduxjs/toolkit` - it works with RTK stores, vanilla Redux, or no Redux at all.
 
 ## Quick start
 
@@ -57,7 +57,7 @@ App-wide defaults for scroll settings. Wrap your root layout to set global defau
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `children` | `ReactNode` | — |
+| `children` | `ReactNode` | - |
 | `initialValue` | `Partial<ScrollViewSettings>` | Initial settings applied once on mount |
 | `onChange` | `(settings: ScrollViewSettings) => void` | Called whenever settings change |
 
@@ -70,15 +70,15 @@ Screen-level provider that owns header/footer state and scroll position. Must wr
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `blur` | `boolean` | system | Enable frosted-glass backdrop on header/footer |
-| `chrome` | `boolean` | `true` | Join an enclosing [`ScrollViewChromeProvider`](#scrollviewchromeprovider) when there is one. Pass `false` to opt out — for a nested provider that isn't a screen, such as a picker or form modal. No effect when nothing hosts |
+| `chrome` | `boolean` | `true` | Join an enclosing [`ScrollViewChromeProvider`](#scrollviewchromeprovider) when there is one. Pass `false` to opt out - for a nested provider that isn't a screen, such as a picker or form modal. No effect when nothing hosts |
 | `fixed` | `boolean` | `false` | Pin both header and footer (overrides `headerFixed`/`footerFixed`) |
-| `footerAboveKeyboard` | `boolean` | `false` | With a fixed footer, float it above the keyboard instead of letting the keyboard cover it — see [Keyboard awareness](#keyboard-awareness) |
+| `footerAboveKeyboard` | `boolean` | `false` | With a fixed footer, float it above the keyboard instead of letting the keyboard cover it - see [Keyboard awareness](#keyboard-awareness) |
 | `headerFixed` | `boolean` | `false` | Pin header; overrides settings default |
 | `footerFixed` | `boolean` | `false` | Pin footer; overrides settings default |
 | `snapBack` | `boolean` | `false` | Snap header and footer back when scrolling up |
-| `snapBackHeader` | `boolean` | — | Override `snapBack` for header only |
-| `snapBackFooter` | `boolean` | — | Override `snapBack` for footer only |
-| `tabBarHeight` | `number` | `0` | Extra bottom inset reserved for a host app's own persistent tab bar (added on top of the safe-area inset, independent of any `ScrollViewFooter`). Ignored inside a `ScrollViewChromeProvider` — the host's `footprint` replaces it (see [Persistent bottom chrome](#persistent-bottom-chrome-hiding-a-tab-bar-with-scroll)) |
+| `snapBackHeader` | `boolean` | - | Override `snapBack` for header only |
+| `snapBackFooter` | `boolean` | - | Override `snapBack` for footer only |
+| `tabBarHeight` | `number` | `0` | Extra bottom inset reserved for a host app's own persistent tab bar (added on top of the safe-area inset, independent of any `ScrollViewFooter`). Ignored inside a `ScrollViewChromeProvider` - the host's `footprint` replaces it (see [Persistent bottom chrome](#persistent-bottom-chrome-hiding-a-tab-bar-with-scroll)) |
 
 ---
 
@@ -88,13 +88,13 @@ Hosts a persistent bottom bar (a tab bar) so it hides on scroll together with ea
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `children` | `ReactNode` | — | Usually the navigator (`<Tabs>`) |
-| `footprint` | `number` | required | Height of the bar's resting box, including its bottom safe-area inset — how far above the screen bottom a hosted `ScrollViewFooter` has to sit to clear it. A plain number rather than something the bar reports back, so every screen has the right geometry on its very first render |
+| `children` | `ReactNode` | - | Usually the navigator (`<Tabs>`) |
+| `footprint` | `number` | required | Height of the bar's resting box, including its bottom safe-area inset - how far above the screen bottom a hosted `ScrollViewFooter` has to sit to clear it. A plain number rather than something the bar reports back, so every screen has the right geometry on its very first render |
 | `overhang` | `number` | `0` | How far the bar pokes *above* its resting box (a raised centre button, say). Hosted footers pad their bottom by this instead of the safe-area inset, and the hide distance covers it |
 | `snapBack` | `boolean` | `true` | Hosted footers reveal on a short scroll-up instead of only near the top. A bar that hides on scroll has to be reachable from anywhere in a list, so leave this on unless you have a reason not to |
-| `useIsActive` | `() => boolean` | `() => true` | A hook returning whether the calling screen is the focused one — pass react-navigation's `useIsFocused` (re-exported by `expo-router`). Only the focused screen drives the bar. Injected so this package carries no navigation dependency. **Must be a stable hook reference** (a module-level hook such as `useIsFocused`, never an inline arrow created per render): it is called as a hook on every render of every hosted provider |
+| `useIsActive` | `() => boolean` | `() => true` | A hook returning whether the calling screen is the focused one - pass react-navigation's `useIsFocused` (re-exported by `expo-router`). Only the focused screen drives the bar. Injected so this package carries no navigation dependency. **Must be a stable hook reference** (a module-level hook such as `useIsFocused`, never an inline arrow created per render): it is called as a hook on every render of every hosted provider |
 
-The default `() => true` makes every mounted hosted screen claim the host, and the last one to mount owns it — only right for a navigator that keeps a single screen mounted. Use `useIsFocused` with `Tabs` or anything else that keeps visited screens alive.
+The default `() => true` makes every mounted hosted screen claim the host, and the last one to mount owns it - only right for a navigator that keeps a single screen mounted. Use `useIsFocused` with `Tabs` or anything else that keeps visited screens alive.
 
 ---
 
@@ -104,18 +104,18 @@ Floating header with blur backdrop, title, back action, trailing action, and bui
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `title` | `string` | — | Center title text |
-| `caption` | `string` | — | Subtitle below title |
-| `centerContent` | `ReactNode` | — | Replaces title/caption with custom content |
-| `children` | `ReactNode` | — | Left-side content (icon buttons, etc.) |
-| `backAction` | `() => void` | — | Renders a back button and calls this on press |
+| `title` | `string` | - | Center title text |
+| `caption` | `string` | - | Subtitle below title |
+| `centerContent` | `ReactNode` | - | Replaces title/caption with custom content |
+| `children` | `ReactNode` | - | Left-side content (icon buttons, etc.) |
+| `backAction` | `() => void` | - | Renders a back button and calls this on press |
 | `backActionFixed` | `boolean` | settings | Keep back button visible as header scrolls away |
-| `trailingAction` | `ReactNode` | — | Right-side floating action |
+| `trailingAction` | `ReactNode` | - | Right-side floating action |
 | `trailingActionFixed` | `boolean` | `true` | Keep trailing action visible as header scrolls away |
 | `actionSize` | `number` | `48` | Size of floating action buttons |
 | `iconSize` | `number` | `actionSize/2` | Icon size inside action buttons |
-| `actionStyle` | `ViewStyle` | — | Style applied to action button backgrounds |
-| `style` | `ViewStyle` | — | Style applied to the header content area |
+| `actionStyle` | `ViewStyle` | - | Style applied to action button backgrounds |
+| `style` | `ViewStyle` | - | Style applied to the header content area |
 | `topInset` | `boolean` | `true` | Pad for safe area top inset |
 
 ---
@@ -189,7 +189,7 @@ When `horizontal` and `pagingEnabled` are both true and `data` has more than one
 
 ### `SectionList`
 
-Drop-in for React Native's `SectionList`. Accepts all `SectionListProps<ItemT, SectionT>` (except `horizontal`) plus the same set of library props as `FlatList`. Custom sticky section headers are supported — pass `renderSectionHeader` and `stickySectionHeadersEnabled` and the library renders them via an animated overlay so they properly account for the floating header offset.
+Drop-in for React Native's `SectionList`. Accepts all `SectionListProps<ItemT, SectionT>` (except `horizontal`) plus the same set of library props as `FlatList`. Custom sticky section headers are supported - pass `renderSectionHeader` and `stickySectionHeadersEnabled` and the library renders them via an animated overlay so they properly account for the floating header offset.
 
 ---
 
@@ -218,7 +218,7 @@ import { CustomList } from '@rific/scroll-view'
 | `renderFilters` | `ReactNode` | Rendered below `ListHeaderComponent`, above list items |
 | `scrollRef` | `RefObject<{ scrollToOffset }>` | Forward ref to the underlying list |
 
-The underlying component receives `contentInset`, `contentOffset`, `onScroll`, `refreshControl`, and `scrollEventThrottle` — props it must support for the library to function.
+The underlying component receives `contentInset`, `contentOffset`, `onScroll`, `refreshControl`, and `scrollEventThrottle` - props it must support for the library to function.
 
 ---
 
@@ -282,7 +282,7 @@ export default function SearchScreen() {
 | Prop | Type | Description |
 |------|------|-------------|
 | `onChangeText` | `(text: string) => void` | Called with trimmed search text |
-| `onHeightChange` | `(height: number) => void` | Required — pass the height back as `pullSearchHeight` |
+| `onHeightChange` | `(height: number) => void` | Required - pass the height back as `pullSearchHeight` |
 | `value` | `string` | Controlled value |
 | `placeholder` | `string` | Placeholder text |
 | `debounce` | `boolean` | Debounce `onChangeText` by 500ms |
@@ -305,7 +305,7 @@ Pass `keyboardAware` to any scroll component (`ScrollView`, `FlatList`, `Section
 </ScrollViewProvider>
 ```
 
-By default, a fixed `ScrollViewFooter` doesn't follow the keyboard — it stays pinned to the screen bottom and the keyboard simply covers it. If the footer holds something the user needs while typing (a submit button, say), set `footerAboveKeyboard` on `ScrollViewProvider` so the footer floats above the keyboard instead, reachable without dismissing it first:
+By default, a fixed `ScrollViewFooter` doesn't follow the keyboard - it stays pinned to the screen bottom and the keyboard simply covers it. If the footer holds something the user needs while typing (a submit button, say), set `footerAboveKeyboard` on `ScrollViewProvider` so the footer floats above the keyboard instead, reachable without dismissing it first:
 
 ```tsx
 <ScrollViewProvider footerFixed footerAboveKeyboard>
@@ -320,25 +320,25 @@ By default, a fixed `ScrollViewFooter` doesn't follow the keyboard — it stays 
 </ScrollViewProvider>
 ```
 
-`footerAboveKeyboard` only has an effect when the footer is fixed (`footerFixed`) — a footer that scrolls away with content has nothing to reserve keyboard space for. Always pair it with `keyboardAware: true` on any scroll component that could have a focused input while it's visible. Content always reserves space for the current footer height regardless of `keyboardAware` (so a fixed footer never overlaps it) — and while floating, that height already includes the keyboard, so a list with `keyboardAware: false` ends up reserving keyboard space anyway, just indirectly through the footer rather than directly. There's no useful configuration where you'd want the footer reachable above the keyboard but *not* want that same list's own content clear of it too, so don't rely on `keyboardAware: false` to opt a list out of this while `footerAboveKeyboard` is on — it won't.
+`footerAboveKeyboard` only has an effect when the footer is fixed (`footerFixed`) - a footer that scrolls away with content has nothing to reserve keyboard space for. Always pair it with `keyboardAware: true` on any scroll component that could have a focused input while it's visible. Content always reserves space for the current footer height regardless of `keyboardAware` (so a fixed footer never overlaps it) - and while floating, that height already includes the keyboard, so a list with `keyboardAware: false` ends up reserving keyboard space anyway, just indirectly through the footer rather than directly. There's no useful configuration where you'd want the footer reachable above the keyboard but *not* want that same list's own content clear of it too, so don't rely on `keyboardAware: false` to opt a list out of this while `footerAboveKeyboard` is on - it won't.
 
-Floating is done by growing the footer's own container rather than translating it, so its `BlurView` backdrop always stays sealed against the true physical screen bottom — nothing shows through beneath it, including at the keyboard's rounded top corners.
+Floating is done by growing the footer's own container rather than translating it, so its `BlurView` backdrop always stays sealed against the true physical screen bottom - nothing shows through beneath it, including at the keyboard's rounded top corners.
 
-While floating above an open keyboard, the footer also drops its safe-area bottom inset — it's no longer sitting at the physical screen edge, so that padding would just be dead space under its content. As the keyboard closes, the inset ramps back in continuously over the last bit of its travel rather than snapping back once it's fully closed, so the content settles at the safe-area line smoothly instead of dropping to the physical bottom edge and correcting back up.
+While floating above an open keyboard, the footer also drops its safe-area bottom inset - it's no longer sitting at the physical screen edge, so that padding would just be dead space under its content. As the keyboard closes, the inset ramps back in continuously over the last bit of its travel rather than snapping back once it's fully closed, so the content settles at the safe-area line smoothly instead of dropping to the physical bottom edge and correcting back up.
 
-Keyboard awareness is native-only — `useKeyboardInset` (and therefore `keyboardAware`/`footerAboveKeyboard`) always resolves to `0` height on web.
+Keyboard awareness is native-only - `useKeyboardInset` (and therefore `keyboardAware`/`footerAboveKeyboard`) always resolves to `0` height on web.
 
 ---
 
 ## Persistent bottom chrome (hiding a tab bar with scroll)
 
-A `ScrollViewFooter` hides on scroll, but an app's tab bar lives outside this package — it stays put, and the footer has to be lifted above it with `tabBarHeight`. `ScrollViewChromeProvider` turns the two into one rigid stack: the screen's footer and the tab bar share a single animated offset, so they hide and reveal together as one piece, frame for frame.
+A `ScrollViewFooter` hides on scroll, but an app's tab bar lives outside this package - it stays put, and the footer has to be lifted above it with `tabBarHeight`. `ScrollViewChromeProvider` turns the two into one rigid stack: the screen's footer and the tab bar share a single animated offset, so they hide and reveal together as one piece, frame for frame.
 
 Three pieces make it work:
 
-1. **Host** — mount `ScrollViewChromeProvider` above the navigator, giving it the bar's `footprint`.
-2. **Screens** — nothing to change. Each `ScrollViewProvider` (and its `ScrollViewHeader`, `ScrollViewFooter`, scroll component) below the host joins it while its screen is focused.
-3. **Bar** — your own tab bar reads the shared offset with `useScrollViewChromeStyle()` and applies it as an animated style. It has to overlay the screen (absolutely positioned at the bottom) with a resting box exactly `footprint` tall, since hosted footers are lifted by that number.
+1. **Host** - mount `ScrollViewChromeProvider` above the navigator, giving it the bar's `footprint`.
+2. **Screens** - nothing to change. Each `ScrollViewProvider` (and its `ScrollViewHeader`, `ScrollViewFooter`, scroll component) below the host joins it while its screen is focused.
+3. **Bar** - your own tab bar reads the shared offset with `useScrollViewChromeStyle()` and applies it as an animated style. It has to overlay the screen (absolutely positioned at the bottom) with a resting box exactly `footprint` tall, since hosted footers are lifted by that number.
 
 ```tsx
 // app/(tabs)/_layout.tsx
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
 })
 ```
 
-Screens are written exactly as they were — there is no chrome-specific prop on the happy path:
+Screens are written exactly as they were - there is no chrome-specific prop on the happy path:
 
 ```tsx
 // app/(tabs)/library.tsx
@@ -408,7 +408,7 @@ export default function Library() {
 
 ### Pinning the bar
 
-`useScrollViewChromePin(active)` holds the bar fully revealed — and stops scroll from hiding it — for as long as `active` is `true`. Use it whenever something on screen needs the bar to stay put, such as a focused search field or a multi-select in progress. Pins are counted, so two independent pinners can't release each other, and it works from any component under the host (below a `ScrollViewProvider` too).
+`useScrollViewChromePin(active)` holds the bar fully revealed - and stops scroll from hiding it - for as long as `active` is `true`. Use it whenever something on screen needs the bar to stay put, such as a focused search field or a multi-select in progress. Pins are counted, so two independent pinners can't release each other, and it works from any component under the host (below a `ScrollViewProvider` too).
 
 ```tsx
 function SearchField() {
@@ -418,11 +418,11 @@ function SearchField() {
 }
 ```
 
-`useScrollViewChromeReveal()` returns a function that animates the bar back to fully revealed (200ms) — handy for a tab press or a "scroll to top" action, as in the example above.
+`useScrollViewChromeReveal()` returns a function that animates the bar back to fully revealed (200ms) - handy for a tab press or a "scroll to top" action, as in the example above.
 
 ### Nested providers that aren't screens
 
-A `ScrollViewProvider` nested inside another one never sees the host: every hosted provider clears it for its own children, so a panel inside a screen can't compete with its parent. A picker or form modal is the exception — a portal can re-parent it out from under its screen's provider, and it would then claim the host and drive the bar from its own scrolling. Pass `chrome={false}` to opt those out:
+A `ScrollViewProvider` nested inside another one never sees the host: every hosted provider clears it for its own children, so a panel inside a screen can't compete with its parent. A picker or form modal is the exception - a portal can re-parent it out from under its screen's provider, and it would then claim the host and drive the bar from its own scrolling. Pass `chrome={false}` to opt those out:
 
 ```tsx
 <ScrollViewProvider chrome={false} footerFixed>
@@ -435,18 +435,18 @@ A `ScrollViewProvider` nested inside another one never sees the host: every host
 
 ### What changes for a hosted screen
 
-- **The footer joins the stack.** It sits `footprint` above the screen bottom, translates by the shared offset (clamped to the full hide distance), and pads its bottom by `overhang` instead of the safe-area inset — the bar's `footprint` already includes that inset.
+- **The footer joins the stack.** It sits `footprint` above the screen bottom, translates by the shared offset (clamped to the full hide distance), and pads its bottom by `overhang` instead of the safe-area inset - the bar's `footprint` already includes that inset.
 - **Hide distance.** The stack slides `footprint + max(footerHeight, overhang) + 2` points: the bar, plus the screen's footer (whose measured height already includes the `overhang` padding; with no footer, just the `overhang`), plus 2 points of slack so a soft shadow bleeding past the bar's box doesn't leave a sliver at the screen edge.
 - **Footer snap-back is forced.** A hosted footer follows the host's `snapBack` (default `true`) whatever the provider, `snapBackFooter` or settings values say, so the stack reveals on a short scroll-up from anywhere in a list. The header's own snap-back is untouched.
-- **Scrolling stops at an end.** Hiding tracks the scroll 1:1, so a drag can end with the stack half hidden. When a drag ends without momentum, or momentum ends, the stack animates (200ms) to whichever end is nearer — fully shown or fully hidden, never cut off.
+- **Scrolling stops at an end.** Hiding tracks the scroll 1:1, so a drag can end with the stack half hidden. When a drag ends without momentum, or momentum ends, the stack animates (200ms) to whichever end is nearer - fully shown or fully hidden, never cut off.
 - **Short lists never hide.** A list that can't scroll at least the hide distance would strand the stack half hidden, so it never starts hiding and stays revealed.
 - **Footer Lock keeps it revealed.** A fixed footer (`footerFixed`, `fixed`, or the settings default) stops the scroll handlers from writing the offset, and turning it on while the stack is hidden animates the stack back. The hosted footer still reads the shared offset rather than pinning itself to zero, so the footer and the bar stay equal on every frame, including that animation.
-- **The focused screen owns the bar.** Screens that are mounted but unfocused never write the offset. Whenever ownership changes — switching tabs, or landing on a screen with no `ScrollViewProvider` at all — the stack resets to fully revealed instead of staying wherever the last screen parked it. A pin engaging does the same.
-- **The reserved bottom inset stays constant while hidden.** Scroll content reserves `footprint` plus the overhang (or a fixed footer's height) at the bottom. That space can't animate, so it stays reserved as the bar slides away rather than the list resizing mid-scroll — the last row can always scroll clear of a revealed bar, and nothing shifts when the bar hides.
+- **The focused screen owns the bar.** Screens that are mounted but unfocused never write the offset. Whenever ownership changes - switching tabs, or landing on a screen with no `ScrollViewProvider` at all - the stack resets to fully revealed instead of staying wherever the last screen parked it. A pin engaging does the same.
+- **The reserved bottom inset stays constant while hidden.** Scroll content reserves `footprint` plus the overhang (or a fixed footer's height) at the bottom. That space can't animate, so it stays reserved as the bar slides away rather than the list resizing mid-scroll - the last row can always scroll clear of a revealed bar, and nothing shifts when the bar hides.
 - **`tabBarHeight` is ignored.** The host's `footprint` is the same "reserve this much at the bottom" number, just known exactly, and takes its place.
 - **With a fixed footer floating above the keyboard** (`footerFixed` + `footerAboveKeyboard`), the footer sits above whichever is taller, the bar or the keyboard, instead of floating a whole bar-height above the keyboard.
 
-Outside a host — or in a provider with `chrome={false}` — none of this applies and every behavior in the rest of this README is unchanged. `useScrollViewChromeStyle`, `useScrollViewChromePin` and `useScrollViewChromeReveal` are also inert there (a permanent zero translate, a no-op pin and a no-op reveal), so a shared tab bar component can call them unconditionally.
+Outside a host - or in a provider with `chrome={false}` - none of this applies and every behavior in the rest of this README is unchanged. `useScrollViewChromeStyle`, `useScrollViewChromePin` and `useScrollViewChromeReveal` are also inert there (a permanent zero translate, a no-op pin and a no-op reveal), so a shared tab bar component can call them unconditionally.
 
 ---
 
@@ -465,7 +465,7 @@ const { scrollPosition, scrollHeight, progressing, progress, setProgress, setPro
 | `scrollPosition` | `SharedValue<number>` | Live scroll offset (Reanimated worklet-safe) |
 | `scrollHeight` | `number` | Visible scroll area height (window minus header/footer) |
 | `progressing` | `boolean` | Whether the header progress bar is visible |
-| `progress` | `number \| null` | Progress bar value (0–1), or `null` for indeterminate |
+| `progress` | `number \| null` | Progress bar value (0-1), or `null` for indeterminate |
 | `setProgress` | `(p: number \| null) => void` | Set progress; pass `null` for indeterminate |
 | `setProgressing` | `(b: boolean) => void` | Show/hide the progress bar |
 
@@ -567,8 +567,8 @@ store.dispatch(scrollViewActions.initialize({ snapBack: true, headerFixed: false
 | `headerFixed` | `false` | Pin header globally |
 | `footerFixed` | `false` | Pin footer globally |
 | `snapBack` | `false` | Snap header and footer back when scrolling up |
-| `snapBackHeader` | — | Override `snapBack` for header only |
-| `snapBackFooter` | — | Override `snapBack` for footer only |
+| `snapBackHeader` | - | Override `snapBack` for header only |
+| `snapBackFooter` | - | Override `snapBack` for footer only |
 | `backActionFixed` | `true` | Keep back button visible as header scrolls away |
 
 Settings cascade: `ScrollViewSettingsProvider` → `ScrollViewProvider` → individual scroll component props. More specific values always win.

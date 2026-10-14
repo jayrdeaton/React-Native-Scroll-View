@@ -12,7 +12,7 @@ import { ScrollViewSettingsContext } from './ScrollViewSettingsContext'
 export type ScrollViewProviderProps = {
   blur?: boolean
   // Opt out of an enclosing ScrollViewChromeProvider. A screen inside a hosted navigator joins the
-  // host by default; a nested provider that is NOT a screen (a picker or form modal — Paper's Portal
+  // host by default; a nested provider that is NOT a screen (a picker or form modal - Paper's Portal
   // can re-parent those above the clearing this provider does for its own children) has to say so.
   chrome?: boolean
   children: ReactNode
@@ -58,13 +58,13 @@ export const ScrollViewProvider = ({ blur, chrome, children, fixed = false, foot
   const chromeWritable = useSharedValue(!chromeHosted)
   // Only the registrar ever writes this while hosted. If a provider stops being hosted while it stays
   // mounted (chrome flipping to false, the host unmounting), the registrar goes away with it and
-  // would leave the last value behind — possibly false, which would silently switch off this
+  // would leave the last value behind - possibly false, which would silently switch off this
   // provider's own snap-back footer for good.
   useEffect(() => {
     if (!chromeHosted) chromeWritable.value = true
   }, [chromeHosted, chromeWritable])
   const revealChrome = chromeHost?.reveal
-  // Unhosted, the hide distance is simply the footer's own height — the SAME SharedValue, not a
+  // Unhosted, the hide distance is simply the footer's own height - the SAME SharedValue, not a
   // copy, so nothing about existing snap-back behavior changes. Hosted, the whole stack (screen
   // footer + bar + whatever pokes above the bar) has to clear the screen, and the footer's own
   // measured height already includes the overhang as its bottom padding.
@@ -96,7 +96,7 @@ export const ScrollViewProvider = ({ blur, chrome, children, fixed = false, foot
     // react-native-screens' web shim hides an inactive screen via display:none on an
     // ancestor instead of unmounting it, so the header's ResizeObserver-backed onLayout
     // keeps firing while hidden and reports a spurious 0 (no layout box), then again once
-    // revealed. Never let a spurious 0 clobber a real height — only a true remount
+    // revealed. Never let a spurious 0 clobber a real height - only a true remount
     // (headerHeight reset to null) should ever legitimately shrink it back to 0.
     if (h === 0 && headerHeightRef.current) return
     headerHeightRef.current = h
@@ -105,7 +105,7 @@ export const ScrollViewProvider = ({ blur, chrome, children, fixed = false, foot
   // Mirrored into the SharedValue in the same commit as the state, never ahead of it. Writing it
   // straight from onLayout let the header's translate worklet see the new height while the list
   // still had no top padding and scrollPosition hadn't been moved to its resting -headerHeight
-  // (useScrollInit does that in its own layout effect on this commit) — so for the whole re-render
+  // (useScrollInit does that in its own layout effect on this commit) - so for the whole re-render
   // (~50ms on web) the header computed translateY = -headerHeight and slid off-screen, a visible
   // flash of a header-less screen with the list's first rows at the very top.
   useLayoutEffect(() => {
@@ -125,14 +125,14 @@ export const ScrollViewProvider = ({ blur, chrome, children, fixed = false, foot
     if (!__DEV__ || headerHeight !== null) return
     const timeout = setTimeout(() => {
       // eslint-disable-next-line no-console
-      console.warn('[scroll-view] No ScrollViewHeader ever measured inside this ScrollViewProvider — scroll content stays hidden (opacity: 0) until one does. Render a <ScrollViewHeader> (it can be empty / zero height) inside this provider.')
+      console.warn('[scroll-view] No ScrollViewHeader ever measured inside this ScrollViewProvider: scroll content stays hidden (opacity: 0) until one does. Render a <ScrollViewHeader> (it can be empty / zero height) inside this provider.')
     }, 3000)
     return () => clearTimeout(timeout)
   }, [headerHeight])
   // Web-only recovery for a real race: a header's ResizeObserver-backed onLayout can simply never
-  // fire on the very first mount through Expo Router (observed in practice, not just theorized —
+  // fire on the very first mount through Expo Router (observed in practice, not just theorized -
   // content stuck at opacity: 0 indefinitely, with no error, only escaping via an unrelated resize
-  // forcing a fresh layout pass). Native RN doesn't have this race — onLayout is reliable there, and
+  // forcing a fresh layout pass). Native RN doesn't have this race - onLayout is reliable there, and
   // a persistently-null headerHeight really does mean "no header was ever rendered," which the
   // warning above should keep flagging. On web, give a real first layout two frames to arrive before
   // assuming there isn't one; setHeaderHeight(0) is exactly what a genuinely header-less screen would
@@ -154,7 +154,7 @@ export const ScrollViewProvider = ({ blur, chrome, children, fixed = false, foot
       // shim (and a footer's own unmount cleanup below, which now passes null instead of 0 for
       // exactly this reason) can report/force a spurious 0 while a real footer is effectively
       // still on screen (e.g. a wizard cycling through several <ScrollViewFooter> instances).
-      // Never let that clobber a known height — only an explicit null (genuinely no footer
+      // Never let that clobber a known height - only an explicit null (genuinely no footer
       // mounted) may reset it.
       if (h === 0 && footerHeightRef.current) return
       footerHeightRef.current = h

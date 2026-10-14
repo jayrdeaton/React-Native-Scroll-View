@@ -29,7 +29,7 @@ export function useScrollList({ footerFixed: footerFixedProp, headerFixed: heade
 
   const headerFixed = isHorizontal ? true : (headerFixedProp ?? contextHeaderFixed)
   // Hosted, the footer and the bar share ONE offset that the provider's registrar reveals when Footer
-  // Lock turns on — and the registrar only sees the provider-level flag. A per-list override that
+  // Lock turns on - and the registrar only sees the provider-level flag. A per-list override that
   // turned the handlers off on its own would leave the stack stuck wherever it was hidden.
   const footerFixed = isHorizontal ? true : chromeHosted ? contextFooterFixed : (footerFixedProp ?? contextFooterFixed)
 
@@ -37,12 +37,12 @@ export function useScrollList({ footerFixed: footerFixedProp, headerFixed: heade
     pullSearchHeightShared.value = usesContentInset ? (pullSearchHeight ?? 0) : 0
   }, [pullSearchHeight, pullSearchHeightShared])
 
-  // First render (headerHeight===null): flex:1, sitting naturally below the in-flow header —
+  // First render (headerHeight===null): flex:1, sitting naturally below the in-flow header -
   // same visual position content ends up in after the swap below (absoluteFill + paddingTop
   // matching the now-measured headerHeight), so no hiding is needed for this transition on its
   // own. hideUntilMeasured is only for SectionList: its key={headerHeight>0?1:0} forces a real
   // remount of the underlying native list on this exact transition, and that remount is what
-  // needs hiding, not this container swap itself — ScrollView/FlatList/CustomList never remount
+  // needs hiding, not this container swap itself - ScrollView/FlatList/CustomList never remount
   // here, so unconditionally hiding this container regressed a real "flash of blank" on every
   // fresh mount for them (2026-08-03).
   const containerStyle = useMemo(() => (headerHeight === null ? [{ flex: 1, opacity: hideUntilMeasured ? 0 : 1 }, style] : [StyleSheet.absoluteFill, style]), [headerHeight, hideUntilMeasured, style])
@@ -53,7 +53,7 @@ export function useScrollList({ footerFixed: footerFixedProp, headerFixed: heade
   // ScrollViewFooter's own paddingBottom).
   //
   // When footerAboveKeyboard opts the (fixed) footer into floating above the keyboard instead of
-  // sitting behind it, footerHeight ALREADY includes the current keyboardHeight — ScrollViewFooter
+  // sitting behind it, footerHeight ALREADY includes the current keyboardHeight - ScrollViewFooter
   // grows its own container by keyboardHeight to float (see its containerPaddingBottom), rather
   // than translating a fixed-height bar, so onLayout reports the combined height. Adding
   // keyboardHeight again here would double-count it. Otherwise (not floating) ScrollViewFooter pins
@@ -64,7 +64,7 @@ export function useScrollList({ footerFixed: footerFixedProp, headerFixed: heade
   // is actually taller right now.
   //
   // Hosted, tabBarHeight is the bar's footprint and it already contains the safe-area inset, so the
-  // base reserve is only what pokes above the bar (chromeOverhang) — not insets.bottom a second
+  // base reserve is only what pokes above the bar (chromeOverhang) - not insets.bottom a second
   // time. Hosted also reserves the screen footer's own height whether or not it is fixed: unlike an
   // unhosted footer (whose position is a function of scroll, so scrolling to the end always hides
   // it), a hosted stack settles wherever the last gesture left it, so a revealed footer at the end
@@ -82,7 +82,7 @@ export function useScrollList({ footerFixed: footerFixedProp, headerFixed: heade
     return { bottom, top: headerHeight ?? 0 }
   }, [chromeHosted, chromeOverhang, footerAboveKeyboard, footerFixed, footerHeight, insets.bottom, tabBarHeight, headerHeight, keyboardAware, keyboardHeight])
   // Outside inset mode the same geometry is applied as content padding instead; contentInset is
-  // zeroed (not omitted) so consumers' offset math — scroll-to-top targets, minHeight — stays
+  // zeroed (not omitted) so consumers' offset math - scroll-to-top targets, minHeight - stays
   // correct in the raw 0-based coordinate space those platforms actually scroll in.
   const contentInset = usesContentInset ? insetGeometry : ZERO_INSET
   const contentPadding = useMemo(() => (usesContentInset || isHorizontal ? null : { paddingBottom: insetGeometry.bottom, paddingTop: insetGeometry.top }), [insetGeometry, isHorizontal])
@@ -90,19 +90,19 @@ export function useScrollList({ footerFixed: footerFixedProp, headerFixed: heade
   // Use hideY offset only when this component mounted with headerHeight already known (mode switch).
   // On initial load, headerHeight is null at mount so we start at showY and let useScrollInit
   // call scrollTo after the phase transition. On mode switch, headerHeight is already set so we
-  // can position the FlatList at hideY atomically via contentOffset — no scrollTo needed.
+  // can position the FlatList at hideY atomically via contentOffset - no scrollTo needed.
   const [startedWithHeader] = useState(headerHeight !== null)
   const insetContentOffset = useMemo(() => ({ x: 0, y: headerHeight !== null ? -headerHeight + (startedWithHeader && !isHorizontal && pullSearchHeight ? pullSearchHeight : 0) : 0 }), [headerHeight, isHorizontal, pullSearchHeight, startedWithHeader])
   const contentOffset = usesContentInset ? insetContentOffset : ZERO_OFFSET
 
   const chipHidden = useSharedValue(1)
   // chipHidden/snapBackHeaderShared/headerOffset/scrollPosition/pullSearchHeightShared/
-  // headerHeightShared all need to be listed here too, not just read — see ScrollViewHeader's
+  // headerHeightShared all need to be listed here too, not just read - see ScrollViewHeader's
   // translateStyle for why (web-only reanimated reactivity gap: a SharedValue's mutations don't
   // retrigger useAnimatedStyle unless the value itself is in this array). headerHeightShared is
   // used here rather than the plain `headerHeight` context value specifically because the latter
   // changes identity (null -> a real number) shortly after mount, which forces Reanimated to
-  // recreate this worklet — a crash on react-native-worklets 0.10.1, not just a perf concern. See
+  // recreate this worklet - a crash on react-native-worklets 0.10.1, not just a perf concern. See
   // ScrollViewHeader's translateStyle/blurStyle/progressStyle for the full explanation.
   const chipStyle = useAnimatedStyle(() => {
     const pointerEvents = chipHidden.value ? ('none' as const) : ('box-none' as const)

@@ -38,13 +38,13 @@ const CustomListInner = <P extends object>({ chipProps, chipThreshold, component
 
   const { chipHidden, chipStyle, containerStyle, contentInset, contentOffset, contentPadding, footerFixed, headerFixed } = useScrollList({ footerFixed: footerFixedProp, headerFixed: headerFixedProp, keyboardAware, pullSearchHeight, style })
   const { listGeneration, onListUnmount } = useContext(ScrollViewContext)
-  // -1 never matches a real generation (starts at 0, only increments) — the runOnUI call below
+  // -1 never matches a real generation (starts at 0, only increments) - the runOnUI call below
   // corrects it before any scroll event could observe the placeholder.
   const capturedGeneration = useSharedValue(-1)
   // Layout effects (not passive effects): React guarantees all layout-effect cleanups for fibers
   // removed in a commit run before any layout-effect setups for fibers added in that same commit,
   // but gives no such ordering guarantee for passive effects. On a key-forced remount, the outgoing
-  // instance's unmount and the incoming instance's mount land in the same commit — with passive
+  // instance's unmount and the incoming instance's mount land in the same commit - with passive
   // effects, the incoming instance's sync could run before the outgoing instance's bump, permanently
   // capturing a stale generation and silently disabling this instance's onScroll handling forever.
   // Correct ordering alone isn't sufficient, though: the onScroll worklet reads capturedGeneration
@@ -54,7 +54,7 @@ const CustomListInner = <P extends object>({ chipProps, chipThreshold, component
   // own serial queue, so it's guaranteed to run before any onScroll worklet invocation that could
   // only be queued after this component finishes mounting.
   //
-  // Web has no such thread split, though — see ScrollView.tsx's own doc comment on this same
+  // Web has no such thread split, though - see ScrollView.tsx's own doc comment on this same
   // pattern for why runOnUI's deferred-to-next-frame behavior there leaves a real gap, and why a
   // synchronous assignment is the correct fix rather than a workaround.
   useLayoutEffect(() => {

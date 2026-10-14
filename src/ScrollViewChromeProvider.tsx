@@ -18,7 +18,7 @@ export type ScrollViewChromeProviderProps = {
   // their bottom by this instead of the safe-area inset, and the hide distance covers it.
   overhang?: number
   // Hosted footers reveal on a short scroll-up instead of only near the top. A bar that hides on
-  // scroll has to be reachable from anywhere in a list, so this is on by default — and there is no
+  // scroll has to be reachable from anywhere in a list, so this is on by default - and there is no
   // "hide but only reveal near the top" mode: `snapBack={false}` turns hiding off entirely, leaving
   // the bar and hosted footers permanently revealed.
   snapBack?: boolean
@@ -30,7 +30,7 @@ export type ScrollViewChromeProviderProps = {
 
 // Mounted once above a navigator (a Tabs layout). Every ScrollViewProvider below it that is focused
 // claims it, and while it does, that screen's scroll handlers drive one shared `offset` that the
-// screen's own ScrollViewFooter AND the persistent bar both translate by — a single value read by
+// screen's own ScrollViewFooter AND the persistent bar both translate by - a single value read by
 // both, so the two move as one rigid stack instead of being two animations that have to be kept in
 // step.
 export const ScrollViewChromeProvider = ({ children, footprint, overhang = 0, snapBack = true, useIsActive = alwaysActive }: ScrollViewChromeProviderProps) => {

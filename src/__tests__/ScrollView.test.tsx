@@ -11,7 +11,7 @@ import { ScrollViewProvider } from '../ScrollViewProvider'
 const wrapper = ({ children }: { children: React.ReactNode }) => <ScrollViewProvider>{children}</ScrollViewProvider>
 
 // Sets headerHeight via context shortly after mount (a layout effect, so it lands in the very next
-// commit) — simulates a ScrollViewHeader having measured, which is what makes useScrollInit's own
+// commit) - simulates a ScrollViewHeader having measured, which is what makes useScrollInit's own
 // layout effect call the `scrollTo` callback ScrollView passes it (ScrollView.tsx line 75), distinct
 // from handleScrollToTop which calls scrollView.current directly instead of through it. Mirrors
 // CustomList.test.tsx's identical HeaderHeightSetter.
@@ -53,7 +53,7 @@ describe('ScrollView capturedGeneration effect on web', () => {
     try {
       expect(() => render(<ScrollView />, { wrapper })).not.toThrow()
     } finally {
-      // This mock module is shared process-wide — restore immediately so the mutation can't leak
+      // This mock module is shared process-wide - restore immediately so the mutation can't leak
       // into other tests in this file or other files.
       Platform.OS = 'ios'
     }

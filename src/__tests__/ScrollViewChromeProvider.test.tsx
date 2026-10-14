@@ -161,7 +161,7 @@ describe('ScrollViewChromeProvider claims', () => {
       act(() => root.host?.claim('y'))
       act(() => root.host?.claim('x'))
       expect(root.host?.activeId).toBe('x')
-      // A single release of x must fully remove it — a duplicate would leave x active.
+      // A single release of x must fully remove it - a duplicate would leave x active.
       act(() => root.host?.release('x'))
       expect(root.host?.activeId).toBe('y')
     })

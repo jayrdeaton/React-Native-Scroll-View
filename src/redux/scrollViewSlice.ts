@@ -2,7 +2,7 @@ import { createSettingsSlice } from '@rific/core'
 
 import { defaultScrollViewSettings, type ScrollViewSettings } from '../ScrollViewSettingsContext'
 
-// scrollView has no per-field setters, just a full-replace initialize — matches the previous
+// scrollView has no per-field setters, just a full-replace initialize - matches the previous
 // hand-rolled slice exactly (action type 'scrollView/initialize', full-state-replace behavior).
 const scrollViewSlice = createSettingsSlice<ScrollViewSettings>('scrollView', {
   initialState: defaultScrollViewSettings,

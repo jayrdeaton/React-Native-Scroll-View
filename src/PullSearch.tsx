@@ -47,7 +47,7 @@ export const PullSearch = forwardRef<PullSearchHandle, PullSearchProps>(function
     (isHidden, wasHidden) => {
       if (isHidden && !wasHidden) runOnJS(blurInput)()
     },
-    // scrollPosition has to be listed too, not just read — see useStickyHeaders' useAnimatedReaction
+    // scrollPosition has to be listed too, not just read - see useStickyHeaders' useAnimatedReaction
     // for why: on web, without reanimated's Babel plugin active, an unlisted SharedValue mutation
     // never re-triggers this reaction (confirmed empirically elsewhere in this package).
     [barHeight, headerHeight, blurInput, scrollPosition]

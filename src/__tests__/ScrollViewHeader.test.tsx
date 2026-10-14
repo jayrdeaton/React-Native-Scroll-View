@@ -12,13 +12,13 @@ import { ScrollViewProvider } from '../ScrollViewProvider'
 const wrapper = ({ children }: { children: React.ReactNode }) => <ScrollViewProvider>{children}</ScrollViewProvider>
 
 // The mocked Appbar.BackAction (see __mocks__/react-native-paper.ts) renders nothing at all, so
-// the only way to observe which path ScrollViewHeader took is the mock's own call record — not
+// the only way to observe which path ScrollViewHeader took is the mock's own call record - not
 // anything queryable in the rendered tree.
 const mockBackAction = jest.mocked(Appbar.BackAction)
 // Same technique as ScrollViewChip.test.tsx's mocked Chip: Animated.View (see
 // __mocks__/react-native-reanimated.ts) is a jest.fn(stub), so its own call record is how we read
 // back onLayout and the worklet-computed styles (translateStyle/blurStyle) a test can't otherwise
-// observe — useAnimatedStyle's mock result never escapes the component.
+// observe - useAnimatedStyle's mock result never escapes the component.
 const mockAnimatedView = jest.mocked(Animated.View)
 const mockSurface = jest.mocked(Surface)
 const mockView = jest.mocked(View)
@@ -27,10 +27,10 @@ const sharedValue = <T,>(value: T) => ({ value })
 
 // Builds a full ScrollViewContextType so a test can drive ScrollViewHeader's worklets
 // (translateStyle/blurStyle) directly with arbitrary SharedValue-like inputs, without needing a
-// real ScrollViewProvider re-render to get there — same pattern as useScrollList.test.ts's
+// real ScrollViewProvider re-render to get there - same pattern as useScrollList.test.ts's
 // buildContextValue. Overrides are untyped (rather than Partial<ScrollViewContextType>) because the
 // real SharedValue<T> type demands get/set/addListener/etc that only the actual Reanimated runtime
-// provides — the mock (and every override below) only ever needs the plain `{ value }` shape.
+// provides - the mock (and every override below) only ever needs the plain `{ value }` shape.
 const buildHeaderContext = (overrides: Record<string, unknown> = {}): ScrollViewContextType =>
   ({
     blur: true,
@@ -67,7 +67,7 @@ const buildHeaderContext = (overrides: Record<string, unknown> = {}): ScrollView
   }) as unknown as ScrollViewContextType
 
 // The header content Animated.View (the one wrapping children/title/caption) is the only one
-// ScrollViewHeader passes onLayout to — blur/progress/leading/trailing each render their own
+// ScrollViewHeader passes onLayout to - blur/progress/leading/trailing each render their own
 // Animated.View too, so filter for the prop rather than assume a position.
 const lastHeaderContentProps = () => {
   const calls = mockAnimatedView.mock.calls.filter((call) => typeof (call[0] as { onLayout?: unknown }).onLayout === 'function')
@@ -84,7 +84,7 @@ const lastBlurViewProps = () => {
   return calls[calls.length - 1][0] as { style: [unknown, { height: number }] }
 }
 
-// Re-renders the SAME component instance (not a remount) with a possibly-updated context value —
+// Re-renders the SAME component instance (not a remount) with a possibly-updated context value -
 // needed after calling the captured onLayout directly, since that mutates the header's internal
 // measuredShared SharedValue but doesn't itself trigger React to re-run useAnimatedStyle's factory
 // (the mock recomputes fresh on every render rather than reacting to the mutation).
@@ -148,7 +148,7 @@ describe('ScrollViewHeader', () => {
     expect(setHeaderHeight).toHaveBeenCalledTimes(1)
     expect(setHeaderHeight).toHaveBeenCalledWith(200)
 
-    // Same height as the context's current headerHeight (100) — setHeaderHeight must not fire again.
+    // Same height as the context's current headerHeight (100) - setHeaderHeight must not fire again.
     act(() => onLayout({ nativeEvent: { layout: { height: 100 } } } as LayoutChangeEvent))
     expect(setHeaderHeight).toHaveBeenCalledTimes(1)
   })
@@ -236,7 +236,7 @@ describe('ScrollViewHeader', () => {
   })
 
   // ScrollViewProvider's own `blur` prop defaults to undefined, and the mocked useBlur
-  // (__mocks__/auto-paper.ts) resolves that to `false` — so every other test in this file, all
+  // (__mocks__/auto-paper.ts) resolves that to `false` - so every other test in this file, all
   // rendered via the default `wrapper`, already exercises the blur:false path. blur:true (and
   // therefore ActionBg's BlurView branch / the header omitting its divider) only happens here.
   it('renders ActionBg via BlurView (not Surface) and omits the header divider when blur is true', () => {

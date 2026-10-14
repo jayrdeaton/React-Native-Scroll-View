@@ -18,7 +18,7 @@ export const ScrollViewFooter = ({ children, style }: ScrollViewFooterProps) => 
   const keyboardHeight = useKeyboardInset()
   // setFooterHeight used to change identity on every real measurement (ScrollViewProvider's
   // useCallback closed over `footerHeight` itself). Depending on it directly here re-ran this
-  // effect on every measurement too — tearing down the PREVIOUS closure as a "cleanup" and calling
+  // effect on every measurement too - tearing down the PREVIOUS closure as a "cleanup" and calling
   // ITS setFooterHeight(null) right after the real height had just been set, permanently clobbering
   // it back to null with no further layout event left to recover it (the DOM node's true size never
   // changed, so onLayout never fires again). The provider's setter is stable now, but the context
@@ -46,11 +46,11 @@ export const ScrollViewFooter = ({ children, style }: ScrollViewFooterProps) => 
   }
   // See ScrollViewHeader's translateStyle/blurStyle/progressStyle for why every SharedValue read
   // here (scrollPosition, headerHeightShared, pullSearchHeightShared, snapBackFooterShared,
-  // footerOffset) also has to be listed explicitly — on web, reanimated doesn't pick up their
+  // footerOffset) also has to be listed explicitly - on web, reanimated doesn't pick up their
   // mutations as reactive triggers unless they're in this array, unlike native.
   const footerStyle = useAnimatedStyle(() => {
     // Hosted, the offset is the ONE value the persistent bar translates by too, so it is always
-    // read straight through — never short-circuited to 0 for footerFixed the way the unhosted path
+    // read straight through - never short-circuited to 0 for footerFixed the way the unhosted path
     // below is. Footer Lock reaches it by animating the shared offset back to 0 instead (see
     // ChromeRegistrar), which keeps this footer and the bar equal on every frame, including the
     // ones where one would otherwise jump and the other animate.
@@ -62,7 +62,7 @@ export const ScrollViewFooter = ({ children, style }: ScrollViewFooterProps) => 
     return { transform: [{ translateY: Math.min(effective, footerHeight ?? 0) }] }
   }, [chromeHosted, footerHeight, footerFixed, headerHeightShared, pullSearchHeightShared, scrollPosition, snapBackFooterShared, footerOffset, stackHeightShared])
   // Floating above the keyboard is done by GROWING this container (via paddingBottom) rather than
-  // translating it. Translating the whole bar left its bottom edge — and the BlurView filling it —
+  // translating it. Translating the whole bar left its bottom edge - and the BlurView filling it -
   // floating above the true screen bottom, exposing a gap of whatever sits behind (visible as a
   // strip above the keyboard, and worse at the keyboard's rounded top corners, which dip below its
   // reported height). Growing the container instead keeps its `bottom: 0` anchor untouched: the
@@ -71,7 +71,7 @@ export const ScrollViewFooter = ({ children, style }: ScrollViewFooterProps) => 
   // as the old translateY did for it.
   const containerPaddingBottom = footerFixed && footerAboveKeyboard ? keyboardHeight : 0
   // Web only, same as ScrollViewHeader's pre-paint measurement: react-native-web's onLayout lands
-  // well after the first paint (a ResizeObserver callback plus a setTimeout measure — over a second
+  // well after the first paint (a ResizeObserver callback plus a setTimeout measure - over a second
   // on a cold load), and until footerHeight is known this footer draws no backdrop (see the
   // BlurView gate below) and the list reserves no room for it, so the row floated bare over the
   // content and its bar only appeared once the measurement arrived. Measuring the row here, after
@@ -90,13 +90,13 @@ export const ScrollViewFooter = ({ children, style }: ScrollViewFooterProps) => 
   }, [])
   // The safe-area bottom inset exists to clear the home indicator at the physical screen edge.
   // Once footerAboveKeyboard has floated this bar's content up above an open keyboard, it's no
-  // longer sitting at that edge — the keyboard itself now occupies that space — so the inset would
+  // longer sitting at that edge - the keyboard itself now occupies that space - so the inset would
   // just be dead space under the content (e.g. under a Save button) for no reason.
   //
   // This has to ramp continuously with keyboardHeight, not flip as a boolean once the keyboard
   // fully closes: containerPaddingBottom above already tracks keyboardHeight every frame, so a
   // step-function padding change here lands in the same frame keyboardHeight hits 0, growing this
-  // row by insets.bottom right as the container finishes shrinking back down — the content visually
+  // row by insets.bottom right as the container finishes shrinking back down - the content visually
   // overshoots to the physical bottom edge and then snaps back up. Ramping this padding by the same
   // keyboardHeight keeps the content's on-screen position moving continuously throughout: for
   // keyboardHeight >= insets.bottom the padding is 0 (unchanged from mid-close), and for the last
@@ -105,7 +105,7 @@ export const ScrollViewFooter = ({ children, style }: ScrollViewFooterProps) => 
   // of dropping past it and correcting back up.
   //
   // Hosted, the bar (which already includes the safe-area inset in its own footprint) sits below
-  // this footer, so the row's bottom padding is only what pokes above the bar (a FAB) — not the
+  // this footer, so the row's bottom padding is only what pokes above the bar (a FAB) - not the
   // inset a second time.
   const bottomPadding = chromeHosted ? chromeOverhang : insets.bottom
   const rowPaddingBottom = footerFixed && footerAboveKeyboard ? Math.max(bottomPadding - keyboardHeight, 0) : bottomPadding
@@ -116,7 +116,7 @@ export const ScrollViewFooter = ({ children, style }: ScrollViewFooterProps) => 
   const footerBottom = chromeHosted && footerFixed && footerAboveKeyboard ? Math.max(tabBarHeight - keyboardHeight, 0) : tabBarHeight
   // A consumer's own `style.paddingBottom` (e.g. tightening the row's vertical rhythm to match a
   // header's actionMargin) is spread after rowPaddingBottom below, so it has to be added to it
-  // rather than assigned after it — plain style-array merge would otherwise let it silently
+  // rather than assigned after it - plain style-array merge would otherwise let it silently
   // replace the safe-area clearance instead of sitting on top of it, leaving the row's real
   // content (buttons, etc.) flush against the home indicator.
   const { paddingBottom: consumerPaddingBottom, ...restStyle } = style ?? {}

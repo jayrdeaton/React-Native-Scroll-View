@@ -12,7 +12,7 @@ const REMOUNT_PRIME_FRAMES = 40
 const SNAP_VERIFY_TOLERANCE = 1
 const SNAP_VERIFY_MAX_ATTEMPTS = 5
 // Long enough to comfortably outlast RN's default animated scrollTo duration (iOS's native
-// setContentOffset:animated: for a typical pull-search distance settles well within this) — see
+// setContentOffset:animated: for a typical pull-search distance settles well within this) - see
 // the comment on scheduleSnapVerification for why a native onMomentumScrollEnd event can't be used
 // as this signal instead.
 const SNAP_VERIFY_INITIAL_DELAY_MS = 400
@@ -51,7 +51,7 @@ export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: extern
   // switch). Only enter 'measuring' on the very first mount when headerHeight hasn't been set yet.
   const [phase, setPhase] = useState<'measuring' | 'ready'>(hasPullSearch && !headerHeight ? 'measuring' : 'ready')
   const [refreshing, setRefreshing] = useState(false)
-  // A plain-ref mirror of `refreshing`, read from inside the deferred timeout below — that
+  // A plain-ref mirror of `refreshing`, read from inside the deferred timeout below - that
   // callback can fire well after the render that scheduled it, so it needs the *current* value,
   // not whatever `refreshing` closed over at schedule time.
   const refreshingRef = useRef(refreshing)
@@ -60,7 +60,7 @@ export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: extern
   }, [refreshing])
   const dragStartY = useRef<number | null>(null)
   // Which pull-search resting position (showY or hideY) a drag-release most recently committed
-  // to, so a late fallback in handleMomentumScrollEnd knows not to fight it — see
+  // to, so a late fallback in handleMomentumScrollEnd knows not to fight it - see
   // scheduleSnapVerification below for how this actually gets enforced.
   const pendingSnapTarget = useRef<number | null>(null)
   const snapVerifyTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -69,9 +69,9 @@ export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: extern
   // Verifies a pull-search drag-release (handleScrollEndDrag) actually landed on `target`, and
   // keeps correcting (non-animated, so it lands immediately) until it does. This is deliberately
   // time-based rather than triggered by onMomentumScrollEnd: a slow/controlled release with near-
-  // zero velocity fires onMomentumScrollEnd within a couple of milliseconds of the drag ending —
+  // zero velocity fires onMomentumScrollEnd within a couple of milliseconds of the drag ending -
   // long before the *animated* scrollTo call issued moments earlier has had any chance to actually
-  // move — so reacting to that event by immediately snapping (non-animated) to the target replaced
+  // move - so reacting to that event by immediately snapping (non-animated) to the target replaced
   // the intended smooth spring-back animation with a jarring instant jump on every normal pull,
   // not just the pathological case this was built for. Waiting out a fixed delay long enough for a
   // normal animated scrollTo to have finished, then checking the *actual* position via
@@ -111,7 +111,7 @@ export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: extern
     []
   )
 
-  // Remount sync: this instance mounted with headerHeight already known — a key-forced remount
+  // Remount sync: this instance mounted with headerHeight already known - a key-forced remount
   // (e.g. numColumns toggling between a list and a grid), not a true first mount. The native
   // scroll view's actual position right after such a remount isn't reliable (Fabric's ScrollView
   // recycling and Reanimated's Animated.FlatList can both leave it at a stale or zeroed offset
@@ -159,7 +159,7 @@ export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: extern
     }, REMOUNT_SYNC_FALLBACK_MS)
     return () => clearTimeout(fallback)
     // Intentionally runs once per mount only, using whatever remountTarget was captured at
-    // construction — not a dep that should retrigger this effect.
+    // construction - not a dep that should retrigger this effect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -170,10 +170,10 @@ export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: extern
     setPhase('ready')
   }, [phase, headerHeight, pullSearchHeight, scrollPosition])
 
-  // Effect A applies ONLY on an actual remount (remountTarget !== null — this instance mounted with
+  // Effect A applies ONLY on an actual remount (remountTarget !== null - this instance mounted with
   // headerHeight already known, e.g. a key-forced remount elsewhere in the tree). It syncs
   // scrollPosition synchronously before first paint and issues a short bounded chain of imperative
-  // scrollTo calls, alternating between two offsets far enough apart (30pt — comfortably more than
+  // scrollTo calls, alternating between two offsets far enough apart (30pt - comfortably more than
   // any plausible rounding/measurement noise) to guarantee at least one call can't be mistaken for a
   // no-op. The declarative `contentOffset` prop alone isn't enough on a remount: when the target is
   // numerically identical to what it was before (headerHeight/pullSearchHeight don't change across a
@@ -181,7 +181,7 @@ export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: extern
   // be left at whatever position it actually drifted to. Worse, iOS's imperative scrollToOffset
   // short-circuits with a CGPointEqualToPoint check against the native view's *actual* current
   // contentOffset before it will fire the native scroll-finished callback that RN turns into an
-  // onScroll event — so a single differing call can still go unnoticed if it happens to race content
+  // onScroll event - so a single differing call can still go unnoticed if it happens to race content
   // that's still growing. Alternating across the *entire* correction window, not just the first
   // couple of frames, forces a real scroll-finished callback so drift becomes observable and the
   // onScroll-driven retry loop in useScrollHandlerJS can correct it.
@@ -189,7 +189,7 @@ export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: extern
   // On a true first mount (remountTarget === null) this effect does nothing beyond a single
   // insurance call against the destination view silently ignoring the very first scroll command
   // because it isn't fully installed in the window hierarchy yet (e.g. mid native-stack push
-  // transition) — a fresh, non-recycled native view reliably honors the declarative contentOffset
+  // transition) - a fresh, non-recycled native view reliably honors the declarative contentOffset
   // prop otherwise. Repeating or oscillating that call here fights Effect B below, whose entire job
   // on a true first mount with pull-search is to push the position on from here to hideY: if this
   // effect keeps re-asserting its own target for tens of frames, it can win the race and leave the
@@ -277,7 +277,7 @@ export function useScrollInit({ listHeaderComponent, onMomentumScrollEnd: extern
       if (pullSearchHeight && headerHeight && !refreshing && pendingSnapTarget.current === null) {
         // No drag committed to a target above (e.g. a fast fling whose whole reveal/overscroll
         // motion happened during momentum, never during the drag itself, so handleScrollEndDrag
-        // never saw a y near the pull-search zone) — fall back to auto-closing if we've ended up
+        // never saw a y near the pull-search zone) - fall back to auto-closing if we've ended up
         // revealed without ever meaning to.
         const y = e.nativeEvent.contentOffset.y
         const hideY = -headerHeight + pullSearchHeight

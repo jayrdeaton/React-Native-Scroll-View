@@ -30,9 +30,9 @@ export type FlatListProps<T> = Omit<RNFlatListProps<T>, 'onRefresh' | 'refreshin
 
 const FlatListInner = <T,>({ chipProps, chipThreshold, columnWrapperStyle, contentContainerStyle: externalContentContainerStyle, data, initialNumToRender = 20, keyExtractor, maxToRenderPerBatch = 50, numColumns, renderFilters, renderItem, footerFixed: footerFixedProp, gesture, headerFixed: headerFixedProp, horizontal, keyboardAware, ListHeaderComponent: externalListHeaderComponent, onChipPress, onMomentumScrollEnd: externalMomentumScrollEnd, onRefresh, onScrollBeginDrag: externalScrollBeginDrag, onScrollEndDrag: externalScrollEndDrag, pagingEnabled, pullSearchHeight, refreshing, removeClippedSubviews = false, showsHorizontalScrollIndicator, showsVerticalScrollIndicator, style, onContentSizeChange, ref: externalRef, windowSize = 100, ...props }: FlatListProps<T>) => {
   // Plain (non-Animated) FlatList: react-native-reanimated's Animated.FlatList does not reliably
-  // honor the initial `contentOffset` prop on a key-forced remount — the header/list can briefly
+  // honor the initial `contentOffset` prop on a key-forced remount - the header/list can briefly
   // render at the wrong position. A plain FlatList honors it correctly, so scroll position is driven
-  // by a regular JS onScroll callback (useScrollHandlerJS) instead of a Reanimated worklet — which
+  // by a regular JS onScroll callback (useScrollHandlerJS) instead of a Reanimated worklet - which
   // also avoids the "WorkletEventHandler" crash that a worklet handler triggers when attached to a
   // non-Animated component.
   const scrollView = useRef<RNFlatList<T>>(null)
@@ -42,10 +42,10 @@ const FlatListInner = <T,>({ chipProps, chipThreshold, columnWrapperStyle, conte
   // RN's own FlatList implements numColumns by chunking `data` into rows internally, but throws if
   // numColumns ever changes without the caller changing `key` to force a full remount. On iOS,
   // Fabric pools/recycles native ScrollView instances by component type across such a remount, and
-  // the recycled instance's onScroll can silently stop firing for the new React instance entirely —
+  // the recycled instance's onScroll can silently stop firing for the new React instance entirely -
   // a native event-routing issue, not something a JS-side retry loop can detect or correct. Doing
   // the row-chunking ourselves here and always passing numColumns={1} through to the underlying
-  // RNFlatList means numColumns never "changes" from RN's perspective — only `data`/`renderItem`
+  // RNFlatList means numColumns never "changes" from RN's perspective - only `data`/`renderItem`
   // change, which RNFlatList treats as an ordinary prop update with no remount at all, so callers
   // can toggle numColumns freely (e.g. switching a list to a grid) without ever hitting this class
   // of bug.

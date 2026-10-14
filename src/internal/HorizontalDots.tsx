@@ -31,7 +31,7 @@ type DotProps = {
 const Dot = ({ activeColor, index, inactiveColor, pageWidth, scrollPosition }: DotProps) => {
   // Explicit array required on web even though nothing here looks platform-specific: without
   // reanimated's Babel plugin active for the web bundle, useAnimatedStyle has no way to
-  // auto-extract dependencies and throws outright rather than silently under-tracking — omitting
+  // auto-extract dependencies and throws outright rather than silently under-tracking - omitting
   // this array isn't a lesser version of the header/footer bug elsewhere in this package, it's a
   // hard crash (confirmed live on the horizontal-pager demo).
   const circleStyle = useAnimatedStyle(() => {

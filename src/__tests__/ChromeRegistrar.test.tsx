@@ -4,7 +4,7 @@ import type { SharedValue } from 'react-native-reanimated'
 import { ChromeRegistrar } from '../internal/ChromeRegistrar'
 import type { ScrollViewChromeHost } from '../ScrollViewChromeContext'
 
-// The host's injected focus hook. A jest.fn so each test can flip it between renders — it is called
+// The host's injected focus hook. A jest.fn so each test can flip it between renders - it is called
 // as a hook, on every render of the registrar, exactly like react-navigation's useIsFocused.
 const useIsActive = jest.fn(() => true)
 
@@ -84,7 +84,7 @@ describe('ChromeRegistrar writable', () => {
   })
 
   // Every scenario here first mounts unowned to learn the id, then re-renders with a host whose
-  // activeId is that id (or not) — the same handoff ScrollViewChromeProvider's state update drives.
+  // activeId is that id (or not) - the same handoff ScrollViewChromeProvider's state update drives.
   const mountAndOwn = () => {
     const writable = buildWritable()
     const host = buildHost()

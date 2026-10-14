@@ -33,17 +33,17 @@ export type ScrollHandlerJS = {
 // Plain JS-thread scroll handler for a non-Animated scrollable. Reanimated shared values are
 // readable/writable from any thread, so driving them via a regular onScroll callback (rather than
 // a useAnimatedScrollHandler worklet, which requires an Animated-wrapped component to attach to at
-// the native level) works fine here — the header/footer animations just pick up the change on
+// the native level) works fine here - the header/footer animations just pick up the change on
 // their next UI-thread frame. This trades a small amount of latency for a plain scrollable that
 // reliably honors the initial `contentOffset` prop on (re)mount, which Animated.FlatList does not.
 export function useScrollHandlerJS({ capturedGeneration, chipHidden, chipThreshold = 100, footerFixed, headerFixed, isHorizontal, jsListGeneration, remountTarget = null, scrollTo }: UseScrollHandlerJSOptions): ScrollHandlerJS {
   const { chromeHosted, chromeWritable, footerOffset, headerHeightShared, headerOffset, pullSearchHeightShared, scrollPosition, snapBackFooterShared, snapBackHeaderShared, stackHeightShared } = useContext(ScrollViewContext)
   const snapUpAccum = useRef(0)
   const fromBottomBounce = useRef(false)
-  // On a remount, the very first native position after mount isn't reliable — Fabric can skip
+  // On a remount, the very first native position after mount isn't reliable - Fabric can skip
   // reapplying `contentOffset` when the target is numerically unchanged from before, and native
   // scroll settling can overshoot or undershoot it. Rather than trust either the declarative prop
-  // or a single imperative scrollTo call, keep correcting (without hiding anything — content stays
+  // or a single imperative scrollTo call, keep correcting (without hiding anything - content stays
   // visible throughout) until an onScroll event actually confirms the intended resting position.
   const pendingRemountTarget = useRef(remountTarget)
   const remountAttempts = useRef(0)
@@ -127,7 +127,7 @@ export function useScrollHandlerJS({ capturedGeneration, chipHidden, chipThresho
 
   // Hosted: scroll tracks 1:1, so it can stop with the stack half hidden; it settles to fully shown
   // or fully hidden instead, since the bar is the app's primary navigation. `revealing` is whether
-  // the 10pt scroll-up latch has already started animating the offset back to 0 — settling on the
+  // the 10pt scroll-up latch has already started animating the offset back to 0 - settling on the
   // in-flight value instead could pick "hidden" and reverse a deliberate reveal.
   const settle = useCallback(
     (revealing: boolean) => {

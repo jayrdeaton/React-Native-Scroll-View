@@ -137,7 +137,7 @@ describe('ScrollViewProvider', () => {
       return null
     }
     // Hold rAF callbacks so the measurement can be delivered between the fallback's two frames,
-    // with no commit in between — exactly the ordering a real browser produced.
+    // with no commit in between - exactly the ordering a real browser produced.
     const queued: FrameRequestCallback[] = []
     const rafSpy = jest.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((cb) => queued.push(cb))
     try {
@@ -222,7 +222,7 @@ describe('ScrollViewProvider', () => {
 const FOOTPRINT = 50
 const OVERHANG = 8
 // Every hosted provider's own slack past the geometrically-required hide distance (see
-// internal/chrome.ts's CHROME_SLACK) — repeated here as a literal so a change to it has to be a
+// internal/chrome.ts's CHROME_SLACK) - repeated here as a literal so a change to it has to be a
 // deliberate edit to these tests too.
 const SLACK = 2
 
@@ -545,7 +545,7 @@ describe('ScrollViewProvider without a ScrollViewChromeProvider', () => {
 describe('ScrollViewProvider chrome host cleanup', () => {
   // Only the registrar ever writes chromeWritable while hosted. A provider that stops being hosted
   // while it stays mounted loses its registrar with it, so without this reset it would keep whatever
-  // the registrar last wrote — false for a non-owner — and its own snap-back footer would stay off.
+  // the registrar last wrote - false for a non-owner - and its own snap-back footer would stay off.
   it('resets chromeWritable to true when a non-owning hosted provider stops being hosted', () => {
     const { screen, update } = renderHosted({ chromeProps: { useIsActive: () => false } })
     expect(screen.ctx?.chromeWritable.value).toBe(false)

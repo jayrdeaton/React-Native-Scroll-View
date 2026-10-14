@@ -96,7 +96,7 @@ describe('ScrollViewFooter safe-area padding', () => {
   })
 
   // Regression test: a consumer's own style.paddingBottom (e.g. a small gap matching the header's
-  // actionMargin) used to be spread after the computed safe-area padding, silently replacing it —
+  // actionMargin) used to be spread after the computed safe-area padding, silently replacing it -
   // consuming apps that set their own vertical rhythm padding lost the home-indicator clearance
   // entirely. It must add on top of the inset instead.
   it("adds a consumer style's paddingBottom on top of the safe-area inset instead of replacing it", () => {
@@ -142,8 +142,8 @@ describe('ScrollViewFooter safe-area padding', () => {
   })
 
   // Regression test for the visible gap (and worse, at the keyboard's rounded top corners) between
-  // the footer and the keyboard: floating must GROW the container so its bottom edge — and the
-  // BlurView filling it — always seals against the true physical screen bottom, rather than
+  // the footer and the keyboard: floating must GROW the container so its bottom edge - and the
+  // BlurView filling it - always seals against the true physical screen bottom, rather than
   // translating a fixed-height bar away from it.
   describe('container growth keeps the blur backdrop sealed to the true screen bottom', () => {
     it('does not grow the container when sitting at the screen edge (keyboard closed)', () => {

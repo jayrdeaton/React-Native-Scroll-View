@@ -13,7 +13,7 @@ const HEADER_HEIGHT = 40
 const BAR_HEIGHT = 36
 // showY: natural rest position, bar fully visible just below the header.
 const SHOW_Y = -HEADER_HEIGHT
-// hideY: bar scrolled up behind the header — this is the threshold the auto-blur reaction fires at.
+// hideY: bar scrolled up behind the header - this is the threshold the auto-blur reaction fires at.
 const HIDE_Y = -HEADER_HEIGHT + BAR_HEIGHT
 
 describe('PullSearch', () => {
@@ -45,7 +45,7 @@ describe('PullSearch', () => {
 
   // Regression test for the 2026-08-03 fix: this component's useAnimatedReaction read
   // scrollPosition.value but didn't list `scrollPosition` in its own dependency array, so on web it
-  // evaluated once at mount and then silently never again — the search bar stayed focused forever
+  // evaluated once at mount and then silently never again - the search bar stayed focused forever
   // instead of auto-blurring once scrolled out of view. This test drives scrollPosition through a
   // ScrollViewContext.Provider we control directly (not the real ScrollViewProvider, which only
   // exposes headerHeight/scrollPosition through its own internal state) so it can assert the
@@ -57,7 +57,7 @@ describe('PullSearch', () => {
 
     const { rerender } = render(<PullSearch onChangeText={jest.fn()} onHeightChange={jest.fn()} />, { wrapper: contextWrapper })
 
-    // Nothing in this mocked environment fires onLayout on its own — pull it off the last
+    // Nothing in this mocked environment fires onLayout on its own - pull it off the last
     // Animated.View render and invoke it manually to establish a real barHeight, exactly like a
     // native layout pass would.
     const AnimatedViewMock = Animated.View as unknown as jest.Mock
@@ -70,7 +70,7 @@ describe('PullSearch', () => {
     expect(inputRef?.blur).not.toHaveBeenCalled()
 
     // Scroll the bar up behind the header. Mutating scrollPosition.value alone doesn't trigger a
-    // React render (the same reason this bug was invisible without a fix) — re-rendering with an
+    // React render (the same reason this bug was invisible without a fix) - re-rendering with an
     // otherwise-identical element is what stands in here for "some later render happens", forcing
     // the mocked useAnimatedReaction (or the real one, in the actual package) to re-evaluate against
     // the now-mutated value.

@@ -11,7 +11,7 @@ import { ScrollViewProvider } from '../ScrollViewProvider'
 const wrapper = ({ children }: { children: React.ReactNode }) => <ScrollViewProvider>{children}</ScrollViewProvider>
 
 // Sets headerHeight via context shortly after mount (a layout effect, so it lands in the very next
-// commit) — simulates a ScrollViewHeader having measured, which is what makes useScrollInit's own
+// commit) - simulates a ScrollViewHeader having measured, which is what makes useScrollInit's own
 // layout effect call the `scrollTo` callback passed in from CustomList (CustomList.tsx line 83),
 // distinct from handleScrollToTop which calls scrollViewInternal directly instead of through it.
 const HeaderHeightSetter = ({ children, height }: { children: React.ReactNode; height: number }) => {
@@ -103,7 +103,7 @@ describe('CustomList', () => {
       const props = MockList.mock.calls[0]?.[0] as MockListProps | undefined
       expect(typeof props?.onScroll).toBe('function')
     } finally {
-      // This mock module is shared process-wide — restore immediately so the mutation can't leak
+      // This mock module is shared process-wide - restore immediately so the mutation can't leak
       // into other tests in this file or other files.
       Platform.OS = 'ios'
     }
@@ -122,7 +122,7 @@ describe('CustomList', () => {
     chipProps.onPress?.({} as never)
     expect(scrollToOffsetMock).toHaveBeenCalledTimes(1)
     const call = scrollToOffsetMock.mock.calls[0][0] as { offset: number; animated: boolean }
-    // contentInset.top is 0 here (no ScrollViewHeader ever measured), so the offset is -0 — assert
+    // contentInset.top is 0 here (no ScrollViewHeader ever measured), so the offset is -0 - assert
     // numeric closeness rather than strict equality to sidestep the -0 vs 0 distinction.
     expect(call.offset).toBeCloseTo(0)
     expect(call.animated).toBe(true)

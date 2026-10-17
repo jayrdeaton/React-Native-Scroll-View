@@ -4,6 +4,7 @@ import { type LayoutChangeEvent, Platform, View } from 'react-native'
 import { Appbar, Surface } from 'react-native-paper'
 import Animated from 'react-native-reanimated'
 
+import { configureScrollView, getScrollViewConfig, ScrollViewConfigProvider } from '../ScrollViewConfig'
 import { ScrollViewContext, type ScrollViewContextType } from '../ScrollViewContext'
 import { ScrollViewFooter } from '../ScrollViewFooter'
 import { ScrollViewHeader } from '../ScrollViewHeader'
@@ -292,6 +293,65 @@ describe('ScrollViewHeader', () => {
     expect(getByTestId('center')).toBeTruthy()
     expect(queryByText('Title text')).toBeNull()
     expect(queryByText('Caption text')).toBeNull()
+  })
+
+  describe('configured BackAction', () => {
+    // Shaped like @rific/feedback-press's AppbarBackActionProps (optional onPress taking an
+    // optional event, an index signature for everything else), so this file also type-checks that
+    // the component an app is meant to pass is accepted without a cast.
+    type FeedbackStyleProps = { onPress?: (e?: unknown) => void; [prop: string]: unknown }
+    const mockConfiguredBackAction = jest.fn((_props: FeedbackStyleProps) => null)
+
+    beforeEach(() => mockConfiguredBackAction.mockClear())
+    // Module-level config outlives a render, so put the default back for every other test.
+    afterEach(() => configureScrollView({ BackAction: undefined }))
+
+    it('renders it in place of Appbar.BackAction with the same props, fixed or not', () => {
+      configureScrollView({ BackAction: mockConfiguredBackAction })
+      const onPress = () => {}
+      render(<ScrollViewHeader backAction={onPress} backActionAccessibilityLabel='Close' />, { wrapper })
+      render(<ScrollViewHeader backAction={onPress} backActionFixed={false} />, { wrapper })
+      expect(mockBackAction).not.toHaveBeenCalled()
+      expect(mockConfiguredBackAction).toHaveBeenCalledTimes(2)
+      const buttonStyle = { borderRadius: 48, height: 48, margin: 0, width: 48 }
+      expect(mockConfiguredBackAction.mock.calls[0][0]).toEqual({ accessibilityLabel: 'Close', onPress, size: 24, style: buttonStyle })
+      expect(mockConfiguredBackAction.mock.calls[1][0]).toEqual(expect.objectContaining({ onPress, size: 24, style: buttonStyle }))
+    })
+
+    it('passes actionSize and iconSize through the same way the default does', () => {
+      configureScrollView({ BackAction: mockConfiguredBackAction })
+      render(<ScrollViewHeader actionSize={40} backAction={() => {}} iconSize={18} />, { wrapper })
+      expect(mockConfiguredBackAction.mock.calls[0][0]).toEqual(expect.objectContaining({ size: 18, style: { borderRadius: 40, height: 40, margin: 0, width: 40 } }))
+    })
+
+    it('is set by ScrollViewConfigProvider before the headers under it render', () => {
+      render(
+        <ScrollViewConfigProvider BackAction={mockConfiguredBackAction}>
+          <ScrollViewProvider>
+            <ScrollViewHeader backAction={() => {}} />
+          </ScrollViewProvider>
+        </ScrollViewConfigProvider>
+      )
+      expect(mockConfiguredBackAction).toHaveBeenCalledTimes(1)
+      expect(mockBackAction).not.toHaveBeenCalled()
+      expect(getScrollViewConfig().BackAction).toBe(mockConfiguredBackAction)
+    })
+
+    it('still gives way to a backAction element on one header', () => {
+      configureScrollView({ BackAction: mockConfiguredBackAction })
+      const { getByTestId } = render(<ScrollViewHeader backAction={<button data-testid='custom-back' />} />, { wrapper })
+      expect(getByTestId('custom-back')).toBeTruthy()
+      expect(mockConfiguredBackAction).not.toHaveBeenCalled()
+      expect(mockBackAction).not.toHaveBeenCalled()
+    })
+
+    it('falls back to Appbar.BackAction once it is cleared', () => {
+      configureScrollView({ BackAction: mockConfiguredBackAction })
+      configureScrollView({ BackAction: undefined })
+      render(<ScrollViewHeader backAction={() => {}} />, { wrapper })
+      expect(mockBackAction).toHaveBeenCalledTimes(1)
+      expect(mockConfiguredBackAction).not.toHaveBeenCalled()
+    })
   })
 
   describe('web pre-paint measurement', () => {

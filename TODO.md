@@ -2,7 +2,7 @@
 
 ## Move off gesture-handler's deprecated `Gesture` builder
 
-Shipped 2026-10-16 with the peer range raised to `react-native-gesture-handler >=2.0.0 <4.0.0` so Expo SDK 58 apps (gesture-handler 3.3) can use it, but the code still uses the builder API (`Gesture.Native()` wrapping the scroll views), which 3.x marks deprecated and says it will remove. Move to the 3.x hooks (`useNativeGesture`) with `GestureDetector`; that makes 3.0 the peer floor, so release it as a minor once every consumer is on SDK 58.
+Shipped 2026-10-16 with the peer range raised to `react-native-gesture-handler >=2.0.0 <4.0.0` so Expo SDK 58 apps (gesture-handler 3.3) can use it, but the code still uses the builder API (`Gesture.Native()` wrapping the scroll views), which 3.x marks deprecated and says it will remove. Move to the 3.x hooks (`useNativeGesture`) with `GestureDetector`; that makes 3.0 the peer floor, so release it as a major (2.0.0, since the package is past 1.0) once every consumer is on SDK 58.
 
 ## Check gestures on a device under gesture-handler 3
 

@@ -63,6 +63,27 @@ App-wide defaults for scroll settings. Wrap your root layout to set global defau
 
 ---
 
+### `ScrollViewConfigProvider`
+
+App-wide component config, set once at startup. Today it holds one thing: the component `ScrollViewHeader` renders for a `backAction` callback. Pass `AppbarBackAction` from [`@rific/feedback-press`](https://www.npmjs.com/package/@rific/feedback-press) and every header's back button gets the same haptics and sound as the rest of your buttons, without touching each screen. This package doesn't depend on feedback-press; you hand it the component.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `BackAction` | `ComponentType<ScrollViewBackActionProps>` | Paper's `Appbar.BackAction` | Rendered for a `backAction` callback. Receives `onPress`, `size`, `style` and `accessibilityLabel` (from `backActionAccessibilityLabel`), the same props the default gets |
+| `children` | `ReactNode` | - | - |
+
+```tsx
+import { AppbarBackAction } from '@rific/feedback-press'
+import { ScrollViewConfigProvider } from '@rific/scroll-view'
+
+// Inside FeedbackPressProvider, since AppbarBackAction reads it
+<ScrollViewConfigProvider BackAction={AppbarBackAction}>{children}</ScrollViewConfigProvider>
+```
+
+Or call `configureScrollView({ BackAction: AppbarBackAction })` once at module load; `getScrollViewConfig()` reads it back. Like the other `@rific` module configs (`DrawerProvider`, `ResizableInputProvider`), this is plain startup config, not React state: the provider sets it during its own render, before anything under it renders, and changing it later doesn't re-render headers already on screen. A `backAction` element on one header still replaces the configured component there.
+
+---
+
 ### `ScrollViewProvider`
 
 Screen-level provider that owns header/footer state and scroll position. Must wrap `ScrollViewHeader`, `ScrollViewFooter`, and the scroll component.
@@ -108,7 +129,7 @@ Floating header with blur backdrop, title, back action, trailing action, and bui
 | `caption` | `string` | - | Subtitle below title |
 | `centerContent` | `ReactNode` | - | Replaces title/caption with custom content |
 | `children` | `ReactNode` | - | Left-side content (icon buttons, etc.) |
-| `backAction` | `() => void` | - | Renders a back button and calls this on press |
+| `backAction` | `(() => void) \| ReactNode` | - | A callback renders a back button (the [configured `BackAction`](#scrollviewconfigprovider), Paper's `Appbar.BackAction` by default) and calls it on press. An element is rendered in that spot instead |
 | `backActionFixed` | `boolean` | settings | Keep back button visible as header scrolls away |
 | `trailingAction` | `ReactNode` | - | Right-side floating action |
 | `trailingActionFixed` | `boolean` | `true` | Keep trailing action visible as header scrolls away |

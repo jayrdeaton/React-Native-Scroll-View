@@ -5,13 +5,15 @@ import { Appbar, ProgressBar, Surface, useTheme } from 'react-native-paper'
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { getScrollViewConfig } from './ScrollViewConfig'
 import { ScrollViewContext } from './ScrollViewContext'
 import { ScrollViewSettingsContext } from './ScrollViewSettingsContext'
 
 export type ScrollViewHeaderProps = {
   actionSize?: number
   actionStyle?: ViewStyle
-  // A plain callback renders the default Appbar.BackAction (themed onSurface, sized/positioned by
+  // A plain callback renders the default back action (Paper's Appbar.BackAction unless the app set
+  // another with configureScrollView({ BackAction }), themed onSurface, sized/positioned by
   // actionSize/iconSize below) - the common case, unchanged from before. Passing a ReactNode
   // instead skips that default entirely and renders the given element in its place, same escape
   // hatch trailingAction already gave the other corner: a caller that wants its own color, icon,
@@ -131,6 +133,10 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
   }, [headerFixed, headerHeightShared, top, headerOffset, pullSearchHeightShared, scrollPosition, snapBackHeaderShared])
   const actionTop = top + actionMargin
   const buttonStyle = { borderRadius: actionSize, height: actionSize, margin: 0, width: actionSize }
+  // A plain callback renders the configured BackAction (configureScrollView / ScrollViewConfigProvider),
+  // Paper's Appbar.BackAction by default. Read at render, like every createModuleConfig consumer.
+  const BackAction = getScrollViewConfig().BackAction ?? Appbar.BackAction
+  const backActionElement = typeof backAction === 'function' ? <BackAction accessibilityLabel={backActionAccessibilityLabel} onPress={backAction} size={iconSize ?? actionSize / 2} style={buttonStyle} /> : backAction
   const actionShadow = { borderRadius: actionSize / 2, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 2 }
   const leadingStyle = { alignItems: 'center' as const, height: actionSize, justifyContent: 'center' as const, left: actionMargin, position: 'absolute' as const, top: actionTop, width: actionSize, zIndex: 3, ...actionShadow }
   const trailingStyle = { alignItems: 'center' as const, height: actionSize, justifyContent: 'center' as const, position: 'absolute' as const, right: actionMargin, top: actionTop, width: actionSize, zIndex: 3, ...actionShadow }
@@ -175,12 +181,12 @@ export const ScrollViewHeader = ({ actionSize = 48, actionStyle, backAction, bac
         (effectiveBackActionFixed ? (
           <Animated.View style={leadingStyle}>
             <ActionBg blur={blur} style={actionStyle} />
-            {typeof backAction === 'function' ? <Appbar.BackAction accessibilityLabel={backActionAccessibilityLabel} onPress={backAction} size={iconSize ?? actionSize / 2} style={buttonStyle} /> : backAction}
+            {backActionElement}
           </Animated.View>
         ) : (
           <Animated.View style={[leadingStyle, translateStyle]}>
             <ActionBg blur={blur} style={actionStyle} />
-            {typeof backAction === 'function' ? <Appbar.BackAction accessibilityLabel={backActionAccessibilityLabel} onPress={backAction} size={iconSize ?? actionSize / 2} style={buttonStyle} /> : backAction}
+            {backActionElement}
           </Animated.View>
         ))}
       {trailingAction &&

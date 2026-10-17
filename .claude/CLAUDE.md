@@ -31,6 +31,8 @@ Tag-based:
 npm run release:patch   # npm version patch && git push --follow-tags (or release:minor / release:major)
 ```
 
+1.0.0 (2026-10-17, the back-action config) took the package out of 0.x, the same step the games took before their first web release, now that rific.jaydeaton.com shows it publicly. From here, follow semver strictly: a new feature is a minor, and a removed or renamed export, a changed prop or a raised peer floor is a major. Consumers on `^1.0.0` then pick up minors and patches with no range edit.
+
 `preversion` runs `npm run verify` first. `prepublishOnly` runs `npm run build`. `publish.yml` fires on `v*` tags and delegates to the shared reusable workflow (`infinitetoken/Workflows/.github/workflows/npm-publish.yml@v1`) with `id-token: write` permission. `ci.yml` runs on every PR and push to `main` via the shared `npm-ci.yml` reusable workflow.
 
 ## Architecture
@@ -44,7 +46,8 @@ src/
   ScrollViewSettingsContext.ts       - app-wide default settings context (backActionFixed, footerFixed, headerFixed, snapBack, snapBackFooter/snapBackHeader) + defaultScrollViewSettings
   ScrollViewProvider.tsx             - top-level provider wiring ScrollViewContext (blur via @rific/auto-paper's useBlur, header/footer state, shared values) around a screen; also decides whether it is "hosted" by an enclosing ScrollViewChromeProvider (`chrome` prop opts out), swaps in the host's offset/footprint/snap-back, and re-provides a null host to its children
   ScrollViewSettingsProvider.tsx     - provider for ScrollViewSettingsContext; accepts initialValue/onChange
-  ScrollViewHeader.tsx               - floating/collapsible header: Appbar back action, title, progress bar, blur chrome via @rific/auto-paper's BlurView
+  ScrollViewConfig.tsx               - app-wide startup config via @rific/core's createModuleConfig: configureScrollView/getScrollViewConfig/ScrollViewConfigProvider. Holds `BackAction`, the component ScrollViewHeader renders for a `backAction` callback (Paper's Appbar.BackAction when unset), so an app can inject @rific/feedback-press's AppbarBackAction without this package depending on it
+  ScrollViewHeader.tsx               - floating/collapsible header: back action (the configured BackAction, else Appbar.BackAction), title, progress bar, blur chrome via @rific/auto-paper's BlurView
   ScrollViewFooter.tsx               - floating/collapsible footer with blur chrome, keyboard-aware offset via useKeyboardInset; hosted, it sits `footprint` above the bottom and translates by the host's shared offset
   ScrollView.tsx                     - drop-in RN ScrollView wrapper wired into the shared scroll/gesture/chip system (UI-thread scroll handler)
   FlatList.tsx                       - drop-in RN FlatList wrapper (JS-thread scroll handler), horizontal paging dots
@@ -123,12 +126,13 @@ The footer's measured height already includes the overhang as bottom padding; `m
 
 From `src/index.ts` (single entry point, no subpath exports):
 
-- Components: `CustomList`, `FlatList`, `PullSearch`, `ScrollView`, `ScrollViewChromeProvider`, `ScrollViewFooter`, `ScrollViewHeader`, `ScrollViewProvider`, `ScrollViewSettingsProvider`, `SectionList`
+- Components: `CustomList`, `FlatList`, `PullSearch`, `ScrollView`, `ScrollViewChromeProvider`, `ScrollViewConfigProvider`, `ScrollViewFooter`, `ScrollViewHeader`, `ScrollViewProvider`, `ScrollViewSettingsProvider`, `SectionList`
 - Hooks: `useKeyboardInset`, `useScrollView`, `useScrollViewChromePin`, `useScrollViewChromeReveal`, `useScrollViewChromeStyle`, `useScrollViewSettings`
 - Context objects: `ScrollViewContext`, `ScrollViewSettingsContext`
 - Redux: `scrollViewActions`, `scrollViewReducer`
+- Config: `configureScrollView`, `getScrollViewConfig`
 - Values: `defaultScrollViewSettings`
-- Types: `CustomListProps`, `FlatListProps`, `ChipProps`, `PullSearchHandle`, `PullSearchProps`, `ScrollViewProps`, `ScrollViewChromeProviderProps`, `ScrollViewContextType`, `ScrollViewFooterProps`, `ScrollViewHeaderProps`, `ScrollViewProviderProps`, `ScrollViewSettings`, `ScrollViewSettingsContextType`, `ScrollViewSettingsProviderProps`, `SectionListProps`
+- Types: `CustomListProps`, `FlatListProps`, `ChipProps`, `PullSearchHandle`, `PullSearchProps`, `ScrollViewProps`, `ScrollViewBackActionProps`, `ScrollViewChromeProviderProps`, `ScrollViewConfig`, `ScrollViewConfigProviderProps`, `ScrollViewContextType`, `ScrollViewFooterProps`, `ScrollViewHeaderProps`, `ScrollViewProviderProps`, `ScrollViewSettings`, `ScrollViewSettingsContextType`, `ScrollViewSettingsProviderProps`, `SectionListProps`
 
 Note: `ChipProps` is exported (for the `chipProps` prop on the list components) but the `ScrollViewChip` component itself is internal-only, not exported. `internal/`'s hooks (`useScrollHandler`, `useScrollHandlerJS`, `useScrollList`, `useStickyHeaders`, `insetMode`), `chrome.ts`, `ChromeRegistrar.tsx` and `FAB.tsx` are implementation details, not part of the public API. Neither chrome context (`ScrollViewChromeHostContext`, `ScrollViewChromeContext`) is exported either - consumers reach the host only through `ScrollViewChromeProvider` and the three `useScrollViewChrome*` hooks.
 

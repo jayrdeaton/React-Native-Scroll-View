@@ -115,10 +115,6 @@ export const interpolateColor = (value: number, inputRange: number[], outputColo
   const b = Math.round(c1.b + (c2.b - c1.b) * t)
   return `rgb(${r}, ${g}, ${b})`
 }
-export const runOnJS =
-  <T extends (...args: unknown[]) => unknown>(fn: T) =>
-  (...args: Parameters<T>) =>
-    fn(...args)
 export const runOnUI =
   <T extends (...args: unknown[]) => unknown>(fn: T) =>
   (...args: Parameters<T>) =>

@@ -1,7 +1,8 @@
 import { callWorkletCallback, useWorkletCallback } from '@rific/core'
 import { useContext } from 'react'
 import type { SharedValue } from 'react-native-reanimated'
-import { runOnJS, useAnimatedScrollHandler, useSharedValue, withTiming } from 'react-native-reanimated'
+import { useAnimatedScrollHandler, useSharedValue, withTiming } from 'react-native-reanimated'
+import { scheduleOnRN } from 'react-native-worklets'
 
 import { ScrollViewContext } from '../ScrollViewContext'
 import { REMOUNT_SYNC_TOLERANCE } from '../useScrollInit'
@@ -38,9 +39,9 @@ export function useScrollHandler({ capturedGeneration, chipHidden, chipThreshold
           const target = remountSyncTarget.value
           if (Math.abs(y - target) < REMOUNT_SYNC_TOLERANCE) {
             remountSyncTarget.value = null
-            if (onRemountSynced) runOnJS(callWorkletCallback)(remountSyncedKey, y)
+            if (onRemountSynced) scheduleOnRN(callWorkletCallback, remountSyncedKey, y)
           } else if (onRemountSyncRetry) {
-            runOnJS(callWorkletCallback)(remountSyncRetryKey, y)
+            scheduleOnRN(callWorkletCallback, remountSyncRetryKey, y)
           }
           return
         }

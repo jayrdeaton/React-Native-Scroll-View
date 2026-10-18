@@ -1,7 +1,8 @@
 import { callWorkletCallback, useWorkletCallback } from '@rific/core'
 import { useCallback, useContext, useLayoutEffect, useRef, useState } from 'react'
-import { runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
+import { useAnimatedReaction, useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { scheduleOnRN } from 'react-native-worklets'
 
 import { ScrollViewContext } from '../ScrollViewContext'
 
@@ -62,7 +63,7 @@ export function useStickyHeaders(headerFixed: boolean, enabled: boolean): Sticky
       return active
     },
     (curr, prev) => {
-      if (curr !== prev) runOnJS(callWorkletCallback)(activeIndexKey, curr)
+      if (curr !== prev) scheduleOnRN(callWorkletCallback, activeIndexKey, curr)
     },
     // Same web-only reanimated gap as useAnimatedStyle elsewhere in this file: this "prepare"
     // function's own SharedValue reads (sectionYPositions, headerHeightShared, scrollPosition,

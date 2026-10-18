@@ -2,7 +2,8 @@ import { callWorkletCallback, useWorkletCallback } from '@rific/core'
 import { forwardRef, useCallback, useContext, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { type LayoutChangeEvent, StyleSheet, type TextInput } from 'react-native'
 import { Searchbar, useTheme } from 'react-native-paper'
-import Animated, { Extrapolation, interpolate, runOnJS, useAnimatedReaction, useAnimatedStyle } from 'react-native-reanimated'
+import Animated, { Extrapolation, interpolate, useAnimatedReaction, useAnimatedStyle } from 'react-native-reanimated'
+import { scheduleOnRN } from 'react-native-worklets'
 
 import { ScrollViewContext } from './ScrollViewContext'
 
@@ -47,7 +48,7 @@ export const PullSearch = forwardRef<PullSearchHandle, PullSearchProps>(function
       return scrollPosition.value >= -(headerHeight ?? 0) + barHeight
     },
     (isHidden, wasHidden) => {
-      if (isHidden && !wasHidden) runOnJS(callWorkletCallback)(blurKey)
+      if (isHidden && !wasHidden) scheduleOnRN(callWorkletCallback, blurKey)
     },
     // scrollPosition has to be listed too, not just read - see useStickyHeaders' useAnimatedReaction
     // for why: on web, without reanimated's Babel plugin active, an unlisted SharedValue mutation

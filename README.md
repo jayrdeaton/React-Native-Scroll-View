@@ -2,6 +2,8 @@
 
 Blur-chrome scroll system for React Native. Drop-in replacements for `ScrollView`, `FlatList`, and `SectionList` with floating headers and footers, pull-to-search, keyboard awareness, horizontal paging, and frosted-glass chrome.
 
+**[Live demo](https://rific.jaydeaton.com/demos/scroll-view)**
+
 ## Installation
 
 ```sh

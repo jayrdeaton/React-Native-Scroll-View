@@ -1,3 +1,4 @@
+import { callWorkletCallback, useWorkletCallback } from '@rific/core'
 import { useCallback, useContext, useLayoutEffect, useRef, useState } from 'react'
 import { runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -19,6 +20,7 @@ export function useStickyHeaders(headerFixed: boolean, enabled: boolean): Sticky
   const sectionYPositions = useSharedValue<number[]>([])
   const sectionHeights = useSharedValue<number[]>([])
   const [activeIndex, setActiveIndex] = useState(-1)
+  const activeIndexKey = useWorkletCallback(setActiveIndex)
   // Mirrors activeIndex React state but lives on the UI thread for overlayStyle.
   // Updated via useLayoutEffect so content and style always change together.
   const contentIndexShared = useSharedValue(-1)
@@ -60,7 +62,7 @@ export function useStickyHeaders(headerFixed: boolean, enabled: boolean): Sticky
       return active
     },
     (curr, prev) => {
-      if (curr !== prev) runOnJS(setActiveIndex)(curr)
+      if (curr !== prev) runOnJS(callWorkletCallback)(activeIndexKey, curr)
     },
     // Same web-only reanimated gap as useAnimatedStyle elsewhere in this file: this "prepare"
     // function's own SharedValue reads (sectionYPositions, headerHeightShared, scrollPosition,

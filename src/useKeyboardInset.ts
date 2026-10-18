@@ -1,3 +1,4 @@
+import { callWorkletCallback, useWorkletCallback } from '@rific/core'
 import { useState } from 'react'
 import { Platform } from 'react-native'
 import { useKeyboardHandler } from 'react-native-keyboard-controller'
@@ -5,15 +6,16 @@ import { runOnJS } from 'react-native-reanimated'
 
 const useKeyboardInsetNative = () => {
   const [keyboardHeight, setKeyboardHeight] = useState(0)
+  const keyboardHeightKey = useWorkletCallback(setKeyboardHeight)
   useKeyboardHandler(
     {
       onMove: (e) => {
         'worklet'
-        runOnJS(setKeyboardHeight)(e.height)
+        runOnJS(callWorkletCallback)(keyboardHeightKey, e.height)
       },
       onEnd: (e) => {
         'worklet'
-        runOnJS(setKeyboardHeight)(e.height)
+        runOnJS(callWorkletCallback)(keyboardHeightKey, e.height)
       }
     },
     []

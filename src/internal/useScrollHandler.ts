@@ -1,3 +1,4 @@
+import { callWorkletCallback, useWorkletCallback } from '@rific/core'
 import { useContext } from 'react'
 import type { SharedValue } from 'react-native-reanimated'
 import { runOnJS, useAnimatedScrollHandler, useSharedValue, withTiming } from 'react-native-reanimated'
@@ -24,6 +25,10 @@ export function useScrollHandler({ capturedGeneration, chipHidden, chipThreshold
   const { chromeHosted, chromeWritable, footerOffset, headerHeightShared, headerOffset, pullSearchHeightShared, scrollPosition, snapBackFooterShared, snapBackHeaderShared, stackHeightShared } = useContext(ScrollViewContext)
   const snapUpAccum = useSharedValue(0)
   const fromBottomBounce = useSharedValue(false)
+  // Worklets never get the consumer's callbacks themselves: react-native-worklets holds a runOnJS target natively for as
+  // long as the worklet lives, which pinned the list. They call the module-level callWorkletCallback by key.
+  const remountSyncedKey = useWorkletCallback((y: number) => onRemountSynced?.(y))
+  const remountSyncRetryKey = useWorkletCallback((y: number) => onRemountSyncRetry?.(y))
 
   return useAnimatedScrollHandler(
     {
@@ -33,9 +38,9 @@ export function useScrollHandler({ capturedGeneration, chipHidden, chipThreshold
           const target = remountSyncTarget.value
           if (Math.abs(y - target) < REMOUNT_SYNC_TOLERANCE) {
             remountSyncTarget.value = null
-            if (onRemountSynced) runOnJS(onRemountSynced)(y)
+            if (onRemountSynced) runOnJS(callWorkletCallback)(remountSyncedKey, y)
           } else if (onRemountSyncRetry) {
-            runOnJS(onRemountSyncRetry)(y)
+            runOnJS(callWorkletCallback)(remountSyncRetryKey, y)
           }
           return
         }

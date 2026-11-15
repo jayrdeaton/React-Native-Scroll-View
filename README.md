@@ -245,6 +245,23 @@ The underlying component receives `contentInset`, `contentOffset`, `onScroll`, `
 
 ---
 
+### `RefreshControl`
+
+React Native's `RefreshControl` in the Paper theme's colors, which `ScrollView`, `FlatList`, `SectionList` and `CustomList` use for their pull-to-refresh. React Native's own draws a white disk with a black arrow on Android (its `tintColor` only reaches iOS), which glares over a dark theme. This one gives the arrow and the iOS spinner the theme's `primary`, and the Android disk the theme's `elevation.level3`, a raised surface a step above cards (`surface` when the theme has no elevation levels).
+
+Without `onRefresh` it turns Android's pull off (`enabled` is Android only), so a list with nothing to refresh doesn't let you pull down a disk that spins and snaps back. `refreshing` defaults to `false`, and any prop you pass wins.
+
+Use it on a list this package doesn't wrap:
+
+```tsx
+import { RefreshControl } from '@rific/scroll-view'
+import { FlashList } from '@shopify/flash-list'
+
+<FlashList data={items} renderItem={renderItem} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />} />
+```
+
+---
+
 ### `ChipProps`
 
 Passed via `chipProps` on any scroll component to customise the floating scroll-to-top chip. Accepts all `Chip` props from `@rific/auto-paper` except `compact`, `icon`, and `onPress` (which are managed by the library), plus:

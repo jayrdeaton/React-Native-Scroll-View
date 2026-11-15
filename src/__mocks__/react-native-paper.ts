@@ -30,6 +30,7 @@ export const useTheme = () => ({
   colors: {
     primary: '#6200ee',
     surface: '#ffffff',
+    elevation: { level3: '#f3edf7' },
     onSecondaryContainer: '#1d192b',
     onSurface: '#000000',
     onSurfaceVariant: '#49454f',

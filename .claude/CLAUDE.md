@@ -15,7 +15,7 @@ npm run lint         # ESLint
 npm run fix          # ESLint --fix
 npm run build        # tsup, outputs CJS + ESM + types to dist/
 npm run build:watch  # tsup --watch
-npm test             # Jest (21 suites, 454 tests as of 2026-09-19 - see Testing)
+npm test             # Jest (22 suites, 474 tests as of 2026-11-15 - see Testing)
 npm run test:watch   # Jest --watchAll --coverage=false
 npm run typecheck    # tsc --noEmit
 npm run verify       # lint + test + typecheck + build, in that order
@@ -69,7 +69,7 @@ src/
     useStickyHeaders.ts               - SectionList sticky-header positioning/clip animation
     ScrollViewChip.tsx                - floating scroll-to-top/start chip (@rific/auto-paper's Chip); internal, not exported as a component
     HorizontalDots.tsx                - paging-dot overlay for horizontal FlatList
-    RefreshControl.tsx                - thin wrapper defaulting refreshing=false
+    RefreshControl.tsx                - React Native's RefreshControl in Paper's colors (primary arrow and iOS spinner, elevation.level3 Android disk), refreshing=false, Android's pull off without onRefresh; exported since 1.2.0 for lists the package doesn't wrap
     FAB.tsx                           - thin wrapper around @rific/auto-paper's FAB; no current importers or exports - IDEAS.md names it as the planned SearchButton trigger
   redux/
     scrollViewSlice.ts                - thin binding over @rific/core's createSettingsSlice('scrollView', {initialState: defaultScrollViewSettings, fieldSetters: []}) factory - no @reduxjs/toolkit dependency, works with RTK, vanilla Redux, or no Redux. Corrected 2026-09-18: this used to be a hand-rolled reducer/actions pair; it was migrated onto the shared factory in an earlier pass but this doc was never updated to match - see @rific/core's own CLAUDE.md for the factory itself
@@ -154,7 +154,7 @@ All required (no `peerDependenciesMeta` - nothing optional):
 
 - Framework: Jest (`@infinitetoken/jest-config/react-native`), jsdom environment
 - Mocks in `src/__mocks__/` for `react-native`, `react-native-reanimated`, `react-native-gesture-handler`, `react-native-keyboard-controller`, `react-native-safe-area-context`, `react-native-paper`, `@rific/auto-paper`
-- 21 suites, 454 tests (`npx jest --coverage=false`, counted 2026-09-19 after the chrome-host work landed; the earlier "13 suites, 88 tests, confirmed 2026-08-30" was stale by then)
+- 22 suites, 474 tests (`npm run verify`, counted 2026-11-15 with `RefreshControl.test.tsx`; 21 and 454 on 2026-09-19 after the chrome-host work landed)
 - Coverage is enforced, not just measured: `@infinitetoken/jest-config/react-native` turns `collectCoverage` on by default, so plain `npm test` (and `verify`) fails below the shared preset's `coverageThreshold.global` of 70% branches/functions/lines/statements. `jest.config.cjs` sets **no** `coverageThreshold` override - it only passes `moduleNameMapper` (the seven mocks) and `setupFilesAfterEnv`, and git history shows it never carried one. (An earlier revision of this file claimed a lowered `{ branches: 55, functions: 63, lines: 77, statements: 74 }` floor; that override doesn't exist and must not be assumed.) `coverage/` is gitignored, and its `coverage-summary.json` is a stale leftover from 2026-08-30, not written by the current reporters (`text`, `lcov`, `html`) - don't read numbers from it.
 - Coverage snapshot, 2026-09-19 (same run as the counts above): 92.14% statements / 83.89% branches / 80.45% functions / 93.11% lines, above the 70 floor on all four. Weakest spots then: `FlatList.tsx` (~76% stmts / ~57% branches / ~61% functions) and `SectionList.tsx` (~70% / ~51% / ~48%); the chrome-host files (`ScrollViewChromeProvider.tsx`, `ChromeRegistrar.tsx`, `chrome.ts`, `useScrollViewChrome.ts`) and both scroll handlers were at 100% statements. The old note that `useScrollHandler.ts` was "effectively untested" and that `ScrollViewSettingsProvider.tsx`/`useScrollViewSettings.ts`/`internal/FAB.tsx`/`redux/scrollViewSlice.ts` had zero coverage no longer holds - each has its own suite now.
 

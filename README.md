@@ -13,8 +13,10 @@ npm install @rific/scroll-view
 ### Peer dependencies
 
 ```sh
-npm install @rific/auto-paper react-native-reanimated react-native-gesture-handler react-native-safe-area-context react-native-paper react-native-keyboard-controller
+npm install @rific/auto-paper @rific/core react-native-reanimated react-native-worklets react-native-gesture-handler react-native-safe-area-context react-native-paper react-native-keyboard-controller
 ```
+
+`@rific/core` (0.5.0+) lets the scroll worklets call back into the components without pinning them in memory, and `react-native-worklets` (0.5.0+, which Reanimated 4 already needs) carries those calls. React Native 0.83+, `@rific/auto-paper` 0.10+, Reanimated 4+ and gesture-handler 2 or 3.
 
 The exported Redux slice has no dependency on `@reduxjs/toolkit` - it works with RTK stores, vanilla Redux, or no Redux at all.
 
@@ -230,11 +232,14 @@ import { CustomList } from '@rific/scroll-view'
 | Prop | Type | Description |
 |------|------|-------------|
 | `chipProps` | `ChipProps` | Customize the scroll-to-top chip (label, style, etc.) |
+| `chipThreshold` | `number` | Scroll offset (px) before the chip appears. Default `100` |
 | `component` | `ComponentType<P>` | The list component to render |
 | `footerFixed` | `boolean` | Pin footer; overrides provider |
 | `gesture` | `GestureType` | Compose with an external RNGH gesture |
 | `headerFixed` | `boolean` | Pin header; overrides provider |
 | `keyboardAware` | `boolean` | Add keyboard height to bottom content inset |
+| `onChipPress` | `() => void` | Additional callback fired when the chip is pressed |
+| `onScrollBeginDrag`, `onScrollEndDrag`, `onMomentumScrollEnd` | `(e: NativeSyntheticEvent<NativeScrollEvent>) => void` | Called after the list's own handlers for these events (which settle `PullSearch` open or closed), so yours still run |
 | `onRefresh` | `() => Promise<void> \| void` | Enables pull-to-refresh |
 | `pullSearchHeight` | `number` | Reserve space above content for `PullSearch` |
 | `refreshing` | `boolean` | Controlled refreshing state |
@@ -612,5 +617,7 @@ store.dispatch(scrollViewActions.initialize({ snapBack: true, headerFixed: false
 | `backActionFixed` | `true` | Keep back button visible as header scrolls away |
 
 Settings cascade: `ScrollViewSettingsProvider` → `ScrollViewProvider` → individual scroll component props. More specific values always win.
+
+`defaultScrollViewSettings` holds these defaults. `ScrollViewSettingsContext` (what `useScrollViewSettings` reads, a `ScrollViewSettingsContextType`) and `ScrollViewContext` (what `useScrollView` reads, a `ScrollViewContextType`, which also carries the package's internal shared values for the header, footer and lists) are exported too, though the hooks are the usual way in.
 
 One exception: inside a `ScrollViewChromeProvider`, a footer's snap-back comes from the host's `snapBack` prop rather than this cascade (see [Persistent bottom chrome](#persistent-bottom-chrome-hiding-a-tab-bar-with-scroll)).

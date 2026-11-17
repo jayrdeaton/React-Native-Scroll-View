@@ -621,3 +621,7 @@ Settings cascade: `ScrollViewSettingsProvider` → `ScrollViewProvider` → indi
 `defaultScrollViewSettings` holds these defaults. `ScrollViewSettingsContext` (what `useScrollViewSettings` reads, a `ScrollViewSettingsContextType`) and `ScrollViewContext` (what `useScrollView` reads, a `ScrollViewContextType`, which also carries the package's internal shared values for the header, footer and lists) are exported too, though the hooks are the usual way in.
 
 One exception: inside a `ScrollViewChromeProvider`, a footer's snap-back comes from the host's `snapBack` prop rather than this cascade (see [Persistent bottom chrome](#persistent-bottom-chrome-hiding-a-tab-bar-with-scroll)).
+
+---
+
+Made by [Infinite Token](https://www.infinitetoken.com), the team behind [Lumber](https://lumber.infinitetoken.com): end-to-end encrypted logging.
